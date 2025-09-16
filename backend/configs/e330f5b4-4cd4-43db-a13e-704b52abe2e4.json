@@ -1,0 +1,21 @@
+{
+  "id": "e330f5b4-4cd4-43db-a13e-704b52abe2e4",
+  "code": "4C4608",
+  "createdAt": "2025-09-08T08:03:16.513Z",
+  "status": "draft",
+  "wall": {
+    "widthCm": 250,
+    "heightCm": 200
+  },
+  "print": {
+    "widthCm": 240,
+    "heightCm": 190
+  },
+  "image": {
+    "url": "https://via.placeholder.com/1200x800.png?text=Sample"
+  },
+  "transform": {
+    "zoom": 1
+  },
+  "areaM2": "4.560"
+}

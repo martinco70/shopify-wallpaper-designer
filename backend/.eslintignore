@@ -1,0 +1,5 @@
+public/designer/
+public/wpd-launcher.js
+public/temp/
+backups/
+**/*.min.js

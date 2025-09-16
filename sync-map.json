@@ -1,0 +1,6 @@
+[
+  {
+    "from": "backend/public/wpd-launcher.js",
+    "to": "assets/wpd-launcher.js"
+  }
+]

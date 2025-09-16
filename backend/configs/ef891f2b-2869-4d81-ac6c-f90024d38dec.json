@@ -1,0 +1,41 @@
+{
+  "id": "ef891f2b-2869-4d81-ac6c-f90024d38dec",
+  "code": "DB80D8",
+  "createdAt": "2025-09-08T08:17:44.607Z",
+  "status": "draft",
+  "version": "2025-09-05",
+  "wall": {
+    "widthCm": 400,
+    "heightCm": 240
+  },
+  "print": {
+    "widthCm": 410,
+    "heightCm": 250
+  },
+  "areaM2": 10.25,
+  "calc": {
+    "mode": "m2",
+    "bahnenbreiteCm": null,
+    "strips": null,
+    "addedExtraStrip": false
+  },
+  "price": {
+    "perM2": null,
+    "total": null,
+    "currency": "CHF"
+  },
+  "image": {
+    "url": "http://localhost:8080/uploads/previews/1757319454231-202878247_xl-preview.jpg"
+  },
+  "transform": {
+    "zoom": 1,
+    "flipH": false,
+    "flipV": false
+  },
+  "context": {
+    "backend": "http://localhost:8080",
+    "shop": null,
+    "productId": null,
+    "sku": null
+  }
+}

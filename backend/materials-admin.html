@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Materialverwaltung</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; padding: 0; }
+    .container { max-width: 500px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 32px; }
+    h1 { font-size: 1.4em; margin-bottom: 24px; }
+    .material-list { margin-bottom: 24px; }
+    .material-item { display: flex; align-items: center; justify-content: space-between; background: #f2f2f2; border-radius: 8px; padding: 10px 16px; margin-bottom: 10px; }
+    .material-name { font-weight: bold; }
+    .delete-btn { background: #c00; color: #fff; border: none; border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+    .delete-btn:hover { background: #a00; }
+  .add-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .add-form input { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #ccc; }
+  .add-form button { background: #0078d4; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; cursor: pointer; }
+  .add-form button:hover { background: #005fa3; }
+  /* Modal styles */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 1000; }
+  .modal { background: #fff; border-radius: 10px; width: 720px; max-width: 95vw; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  .modal-header { padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
+  .modal-header input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+  .modal-body { padding: 0; overflow: auto; }
+  .sku-row { padding: 10px 16px; border-bottom: 1px solid #f2f2f2; }
+  .sku-row:hover { background: #fafafa; }
+  .sku-title { font-weight: 600; margin-bottom: 6px; }
+  .variant-list { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 12px; align-items: center; }
+  .variant-head { font-weight: 600; color: #666; }
+  .variant-btn { background: #0078d4; color: #fff; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+  .variant-btn:hover { background: #005fa3; }
+  .modal-footer { padding: 10px 16px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+  .btn { background: #0078d4; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { background: #005fa3; }
+  .btn-outline { background: #fff; color: #333; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Materialverwaltung</h1>
+    <div class="material-list" id="materialList"></div>
+    <form class="add-form" id="addForm">
+      <input type="text" id="materialName" placeholder="Neues Material" required />
+      <input type="number" id="materialPrice" placeholder="Preis (CHF, optional)" min="0" step="0.01" style="width:160px;" />
+      <span style="display:flex; align-items:center; gap:8px;">
+        <input type="text" id="materialSku" placeholder="SKU (Pflichtfeld)" style="width:160px;" required />
+        <button class="btn btn-outline" id="pickSkuForAdd" type="button">SKU auswählen</button>
+      </span>
+      <button type="submit">Hinzufügen</button>
+    </form>
+
+    <!-- Modal for Shopify SKU picker -->
+    <div class="modal-backdrop" id="skuModal">
+      <div class="modal">
+        <div class="modal-header">
+          <strong>Shopify SKUs auswählen</strong>
+          <input id="skuSearch" placeholder="Filtern nach Titel oder SKU" />
+          <button class="btn btn-outline" id="skuClose" type="button">Schliessen</button>
+        </div>
+        <div class="modal-body" id="skuList"></div>
+        <div class="modal-footer">
+          <div id="skuInfo" style="color:#666; font-size: 0.9em;">Seite lädt…</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline" id="skuPrev" type="button" disabled>Zurück</button>
+            <button class="btn" id="skuNext" type="button" disabled>Mehr laden</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  const API = '/materials';
+  const urlParams = new URLSearchParams(location.search);
+  const SHOP = urlParams.get('shop');
+    function fetchMaterials() {
+      fetch(API)
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById('materialList');
+          list.innerHTML = '';
+          data.forEach(mat => {
+            const item = document.createElement('div');
+            item.className = 'material-item';
+            const priceVal = (mat.price != null && mat.price !== '') ? mat.price : '';
+            const pTitle = mat.productTitle ? ` <span style='color:#666; font-size:0.9em;'>(${mat.productTitle}${mat.variantTitle ? ' – ' + mat.variantTitle : ''})</span>` : '';
+            item.innerHTML = `<span class='material-name'>${mat.name}${pTitle}</span>
+              <span style='display:flex; align-items:center; gap:8px;'>
+                <input type='number' class='price-input' data-id='${mat.id}' value='${priceVal}' placeholder='Preis (CHF)' min='0' step='0.01' style='width:120px;' />
+                <input type='text' class='sku-input' data-id='${mat.id}' value='${mat.sku || ''}' placeholder='SKU' style='width:120px;' />
+                <button class='btn btn-outline pick-sku-btn' data-id='${mat.id}' type='button'>SKU auswählen</button>
+                <button class='delete-btn' data-id='${mat.id}' type='button'>Löschen</button>
+              </span>`;
+            list.appendChild(item);
+          });
+        });
+    }
+    // Simple state for SKU picker
+    let skuPaging = { limit: 50, since_id: undefined, prevStack: [], has_more: false, next_since_id: undefined };
+  let skuTargetMaterialId = null; // number | 'ADD_FORM' | null
+
+    async function fetchSkusPage(reset=false) {
+      const info = document.getElementById('skuInfo');
+      const list = document.getElementById('skuList');
+      const btnNext = document.getElementById('skuNext');
+      const btnPrev = document.getElementById('skuPrev');
+  const search = document.getElementById('skuSearch').value.trim().toLowerCase();
+      if (reset) { skuPaging = { limit: 50, since_id: undefined, prevStack: [], has_more: false, next_since_id: undefined }; }
+      const qs = new URLSearchParams();
+      qs.set('paged','true');
+      qs.set('limit', String(skuPaging.limit));
+      if (skuPaging.since_id) qs.set('since_id', String(skuPaging.since_id));
+      if (SHOP) qs.set('shop', SHOP);
+      info.textContent = 'Lade…';
+      btnNext.disabled = true; btnPrev.disabled = skuPaging.prevStack.length === 0;
+      try {
+        const res = await fetch(`/shopify/skus?${qs.toString()}`);
+        const data = await res.json();
+        list.innerHTML = '';
+        const items = (data.items || []).filter(p => {
+          if (!search) return true;
+          const titleMatch = String(p.title || '').toLowerCase().includes(search);
+          const anySku = (p.variants || []).some(v => String(v.sku || '').toLowerCase().includes(search));
+          return titleMatch || anySku;
+        });
+        for (const p of items) {
+          const row = document.createElement('div');
+          row.className = 'sku-row';
+          const header = document.createElement('div');
+          header.className = 'sku-title';
+          header.textContent = `${p.title} (Produkt-ID: ${p.productId})`;
+          row.appendChild(header);
+          const grid = document.createElement('div');
+          grid.className = 'variant-list';
+          const head1 = document.createElement('div'); head1.className = 'variant-head'; head1.textContent = 'Variante';
+          const head2 = document.createElement('div'); head2.className = 'variant-head'; head2.textContent = 'SKU';
+          const head3 = document.createElement('div'); head3.className = 'variant-head'; head3.textContent = 'Aktion';
+          grid.appendChild(head1); grid.appendChild(head2); grid.appendChild(head3);
+          for (const v of (p.variants || [])) {
+            const vTitle = document.createElement('div'); vTitle.textContent = v.title || '–';
+            const vSku = document.createElement('div'); vSku.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'; vSku.textContent = v.sku || '(kein SKU)';
+            const vAction = document.createElement('div');
+            const btn = document.createElement('button'); btn.className = 'variant-btn'; btn.type = 'button'; btn.textContent = v.sku ? `Auswählen (${v.price ?? '—'} CHF)` : 'Kein SKU';
+            btn.disabled = !v.sku;
+            btn.addEventListener('click', () => {
+              if (!skuTargetMaterialId || !v.sku) return;
+              const sku = String(v.sku).trim();
+              const price = (v.price != null && v.price !== '') ? Number(v.price) : undefined;
+              const payload = { sku };
+              if (price != null) payload.price = price;
+              // Try to include titles for display
+              try {
+                payload.productTitle = p.title || '';
+                payload.variantTitle = v.title || '';
+              } catch {}
+              if (skuTargetMaterialId === 'ADD_FORM') {
+                const addInput = document.getElementById('materialSku');
+                if (addInput) addInput.value = sku;
+                const priceInput = document.getElementById('materialPrice');
+                if (priceInput && price != null) priceInput.value = String(price);
+                hideSkuModal();
+                return;
+              }
+              const input = document.querySelector(`.sku-input[data-id='${skuTargetMaterialId}']`);
+              if (input) input.value = sku;
+              const priceInput2 = document.querySelector(`.price-input[data-id='${skuTargetMaterialId}']`);
+              if (priceInput2 && price != null) priceInput2.value = String(price);
+              fetch(`${API}/${skuTargetMaterialId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => { hideSkuModal(); fetchMaterials(); });
+            });
+            vAction.appendChild(btn);
+            grid.appendChild(vTitle); grid.appendChild(vSku); grid.appendChild(vAction);
+          }
+          row.appendChild(grid);
+          list.appendChild(row);
+        }
+        skuPaging.has_more = Boolean(data.has_more);
+        skuPaging.next_since_id = data.next_since_id || undefined;
+        btnNext.disabled = !skuPaging.has_more;
+        info.textContent = `${items.length} Einträge angezeigt${data.count !== undefined ? ` (Server: ${data.count})` : ''}`;
+      } catch (e) {
+        info.textContent = 'Fehler beim Laden.';
+      }
+    }
+
+    function showSkuModal(forMaterialId) {
+      skuTargetMaterialId = forMaterialId;
+      document.getElementById('skuModal').style.display = 'flex';
+      fetchSkusPage(true);
+    }
+    function hideSkuModal() {
+      document.getElementById('skuModal').style.display = 'none';
+      skuTargetMaterialId = null;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchMaterials();
+      document.getElementById('addForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = document.getElementById('materialName').value.trim();
+        const sku = document.getElementById('materialSku').value.trim();
+        const priceStr = document.getElementById('materialPrice').value.trim();
+        const price = priceStr !== '' ? Number(priceStr) : undefined;
+        if (!name || !sku) return;
+        const body = { name, sku };
+        if (price != null) body.price = price;
+        // If the user wants to set titles manually, they could be added here in future via hidden fields
+        fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }).then(() => {
+          document.getElementById('materialName').value = '';
+          document.getElementById('materialSku').value = '';
+          document.getElementById('materialPrice').value = '';
+          fetchMaterials();
+        });
+      });
+      document.getElementById('materialList').addEventListener('click', e => {
+        if (e.target.classList.contains('delete-btn')) {
+          const id = e.target.getAttribute('data-id');
+          fetch(`${API}/${id}`, { method: 'DELETE' })
+            .then(() => fetchMaterials());
+        } else if (e.target.classList.contains('pick-sku-btn')) {
+          const id = e.target.getAttribute('data-id');
+          showSkuModal(id);
+        }
+      });
+      document.getElementById('materialList').addEventListener('change', e => {
+        if (e.target.classList.contains('sku-input')) {
+          const id = e.target.getAttribute('data-id');
+          const sku = e.target.value;
+          fetch(`${API}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sku })
+          }).then(() => fetchMaterials());
+        } else if (e.target.classList.contains('price-input')) {
+          const id = e.target.getAttribute('data-id');
+          const priceStr = e.target.value;
+          const price = priceStr !== '' ? Number(priceStr) : undefined;
+          fetch(`${API}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ price })
+          }).then(() => fetchMaterials());
+        }
+      });
+      // Modal bindings
+      document.getElementById('skuClose').addEventListener('click', () => hideSkuModal());
+  document.getElementById('pickSkuForAdd').addEventListener('click', () => { skuTargetMaterialId = 'ADD_FORM'; showSkuModal('ADD_FORM'); });
+      document.getElementById('skuNext').addEventListener('click', () => {
+        if (!skuPaging.has_more) return;
+        if (skuPaging.next_since_id) {
+          skuPaging.prevStack.push(skuPaging.since_id || 0);
+          skuPaging.since_id = skuPaging.next_since_id;
+        }
+        fetchSkusPage();
+      });
+      document.getElementById('skuPrev').addEventListener('click', () => {
+        const prev = skuPaging.prevStack.pop();
+        skuPaging.since_id = prev || undefined;
+        fetchSkusPage();
+      });
+      document.getElementById('skuSearch').addEventListener('input', () => fetchSkusPage(true));
+    });
+  </script>
+</body>
+</html>

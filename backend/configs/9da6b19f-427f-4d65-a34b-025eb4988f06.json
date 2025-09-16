@@ -1,0 +1,21 @@
+{
+  "id": "9da6b19f-427f-4d65-a34b-025eb4988f06",
+  "code": "823124",
+  "createdAt": "2025-09-08T08:14:36.498Z",
+  "status": "draft",
+  "wall": {
+    "widthCm": 250,
+    "heightCm": 200
+  },
+  "print": {
+    "widthCm": 240,
+    "heightCm": 190
+  },
+  "image": {
+    "url": "https://via.placeholder.com/1600x900.png?text=Test"
+  },
+  "transform": {
+    "zoom": 1
+  },
+  "areaM2": "4.560"
+}

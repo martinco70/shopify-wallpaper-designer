@@ -1,0 +1,21 @@
+{
+  "id": "62b80d0a-7aab-4c7f-839e-8de38414dd72",
+  "code": "D55AC3",
+  "createdAt": "2025-09-07T06:30:31.852Z",
+  "status": "draft",
+  "wall": {
+    "widthCm": 250,
+    "heightCm": 200
+  },
+  "print": {
+    "widthCm": 240,
+    "heightCm": 190
+  },
+  "image": {
+    "url": "https://via.placeholder.com/1200x800.png?text=Sample"
+  },
+  "transform": {
+    "zoom": 1
+  },
+  "areaM2": "4.560"
+}

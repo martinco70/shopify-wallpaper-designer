@@ -1,0 +1,114 @@
+<!doctype html><html lang="de"><head><meta charset="UTF-8"><title>Shopify Wallpaper Designer</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Proza+Libre:wght@400;600;700&display=swap" rel="stylesheet"><style>:root {
+      --font-family: "Proza Libre", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --font-size-base: 16px;
+      --line-height: 1.55;
+      --text: #222;
+      --muted: #666;
+      --bg: #fff;
+      --border: #e6e6e6;
+      --radius: 0px;
+      --accent: #0078d4; /* general focus/accent */
+      --ui-bg: #F4F2EC; /* requested light background */
+  --zoom-accent: #8C6A00; /* warm dark brown-yellow for zoom */
+  --zoom-accent-rgb: 140, 106, 0; /* for translucent focus rings */
+      --focus: #2b73d2;
+      --h1: clamp(1.9rem, 2.4vw, 2.4rem);
+      --h2: clamp(1.3rem, 1.8vw, 1.6rem);
+      --h3: 1.125rem;
+    }
+
+    html, body { height: 100%; }
+    html { font-size: var(--font-size-base); }
+    body {
+      margin: 0;
+      font-family: var(--font-family);
+      line-height: var(--line-height);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+  h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.2; margin: 0 0 0.75rem; }
+    h1 { font-size: var(--h1); }
+    h2 { font-size: var(--h2); }
+    h3 { font-size: var(--h3); }
+    p { margin: 0 0 0.75rem; color: var(--text); }
+    small, .muted { color: var(--muted); }
+
+    button { 
+      font-family: inherit; font-weight: 600; font-size: 0.95rem; line-height: 1.1;
+      padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--ui-bg); color: var(--text);
+      cursor: pointer; transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+    button:hover { background: #E9E5D7; }
+    button:active { background: #E1DCCB; }
+  button:focus { outline: none; box-shadow: 0 0 0 3px rgba(var(--zoom-accent-rgb), 0.25); border-color: var(--zoom-accent); }
+    button[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+  input, select, textarea {
+      font-family: inherit; font-size: 1rem; line-height: 1.2;
+      padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: #fff; color: var(--text);
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--zoom-accent); box-shadow: 0 0 0 3px rgba(var(--zoom-accent-rgb), 0.2); }
+    input::placeholder { color: #9aa3ab; }
+    label { margin-right: 8px; }
+    /* Checkbox/Radio use zoom accent */
+    input[type="checkbox"], input[type="radio"] {
+      accent-color: var(--zoom-accent);
+    }
+    input[type="checkbox"]:focus, input[type="radio"]:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(var(--zoom-accent-rgb), 0.25);
+      border-color: var(--zoom-accent);
+    }
+
+    /* Zoom slider styles */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      accent-color: var(--zoom-accent);
+      background: transparent;
+      height: 24px;
+      border: none;
+      padding: 0;
+      margin: 0;
+    }
+    input[type="range"]:focus { outline: none; box-shadow: none; border: none; }
+    /* WebKit (Chrome/Edge) track and thumb */
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      background: var(--ui-bg);
+      border: none;
+      border-radius: var(--radius);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -6px; /* center thumb on 6px track */
+      width: 16px; height: 16px;
+      background: var(--zoom-accent);
+      border: none;
+      border-radius: 50%;
+  }
+  /* Firefox track and thumb */
+  input[type="range"]::-moz-range-track {
+      height: 6px;
+      background: var(--ui-bg);
+      border: none;
+      border-radius: var(--radius);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px; height: 16px;
+      background: var(--zoom-accent);
+      border: none;
+      border-radius: 50%;
+  }</style><script defer="defer" src="main.20250902-12.js"></script></head><body><div id="root"></div><script>// Allow dynamic backend via query param in production popup
+    (function(){
+      var p = new URLSearchParams(location.search);
+      var backend = p.get('backend');
+      if (backend) window.WALLPAPER_BACKEND = backend;
+    })();</script></body></html>

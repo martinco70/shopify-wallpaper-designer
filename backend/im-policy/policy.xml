@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policymap PUBLIC "-//ImageMagick//ImageMagick Policy//EN" "http://www.imagemagick.org/script/policy.php">
+<policymap>
+  <!-- Minimal overrides to permit PDF/PS/EPS read for preview generation -->
+  <policy domain="coder" rights="read|write" pattern="PDF"/>
+  <policy domain="coder" rights="read|write" pattern="PS"/>
+  <policy domain="coder" rights="read|write" pattern="EPS"/>
+</policymap>

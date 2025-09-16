@@ -1,0 +1,21 @@
+{
+  "id": "6e47193e-df13-4020-bfd6-ff97e1e9d0f2",
+  "code": "D0003B",
+  "createdAt": "2025-09-07T08:10:50.078Z",
+  "status": "draft",
+  "wall": {
+    "widthCm": 250,
+    "heightCm": 200
+  },
+  "print": {
+    "widthCm": 240,
+    "heightCm": 190
+  },
+  "image": {
+    "url": "https://via.placeholder.com/1200x800.png?text=Sample"
+  },
+  "transform": {
+    "zoom": 1
+  },
+  "areaM2": "4.560"
+}

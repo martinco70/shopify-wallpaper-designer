@@ -1,0 +1,41 @@
+{
+  "configId": "6fbea6bd-e532-43ff-bdb7-234915726749",
+  "status": "draft",
+  "createdAt": "2025-09-06T10:12:31.481Z",
+  "updatedAt": "2025-09-06T10:12:31.486Z",
+  "version": "2025-09-05",
+  "wall": {
+    "widthCm": 400,
+    "heightCm": 240
+  },
+  "print": {
+    "widthCm": 410,
+    "heightCm": 250
+  },
+  "areaM2": 10.25,
+  "calc": {
+    "mode": "m2",
+    "bahnenbreiteCm": null,
+    "strips": null,
+    "addedExtraStrip": false
+  },
+  "price": {
+    "perM2": null,
+    "total": null,
+    "currency": "CHF"
+  },
+  "image": {
+    "url": null
+  },
+  "transform": {
+    "zoom": 1,
+    "flipH": false,
+    "flipV": false
+  },
+  "context": {
+    "backend": "http://localhost:8080",
+    "shop": null,
+    "productId": null,
+    "sku": null
+  }
+}

@@ -1,0 +1,72 @@
+{%- assign selvariant = product.selected_or_first_available_variant -%}
+{%- assign derivedsku = selvariant.sku | default: product.variants.first.sku | default: '' -%}
+
+{%- comment -%}
+  Variant metafield only (wd-picture / wd_picture). No product fallback.
+  Use bracket notation for keys with hyphens.
+{%- endcomment -%}
+{%- assign vmf = selvariant.metafields['custom']['wd-picture'] -%}
+{%- if vmf == blank -%}{%- assign vmf = selvariant.metafields['custom']['wd_picture'] -%}{%- endif -%}
+
+{%- comment -%}Build usable URL regardless of metafield type{%- endcomment -%}
+{%- assign vmfurl = blank -%}
+{%- if vmf -%}
+  {%- if vmf.value and vmf.value != blank -%}
+    {%- assign tmpurl = vmf.value | image_url: width: 2048 -%}
+    {%- if tmpurl == blank -%}{%- assign tmpurl = vmf.value | file_url -%}{%- endif -%}
+    {%- if tmpurl == blank -%}{%- assign tmpurl = vmf.value -%}{%- endif -%}
+    {%- assign vmfurl = tmpurl -%}
+  {%- else -%}
+    {%- assign vmfurl = vmf -%}
+  {%- endif -%}
+{%- endif -%}
+
+<div
+  data-wpd
+  data-backend="https://app.wirzapp.ch"
+  data-shop="{{ shop.permanent_domain | escape }}"
+  data-product-id="{{ product.id }}"
+  data-title="{{ product.title | escape }}"
+  {% if derivedsku != '' %}data-sku="{{ derivedsku | escape }}"{% endif %}
+  {% if vmfurl != blank %}data-image-variant="{{ vmfurl | escape }}"{% endif %}
+  style="margin:1rem 0;"
+>
+  <p style="margin:0 0 .5rem 0;font-size:.95rem;">
+    Um dieses Design anzupassen, kannst du unseren Konfigurator nutzen.
+  </p>
+  <button type="button" data-wpd-open class="wpd-launcher-btn">Jetzt konfigurieren</button>
+</div>
+
+{%- comment -%}
+  Hidden per-variant metafield map (variant-only). Used by the launcher to pick the current variant image after changes.
+{%- endcomment -%}
+<div id="wpd-variant-metafields" style="display:none">
+  {%- for v in product.variants -%}
+    {%- assign loopvmf = v.metafields['custom']['wd-picture'] -%}
+    {%- if loopvmf == blank -%}{%- assign loopvmf = v.metafields['custom']['wd_picture'] -%}{%- endif -%}
+    {%- assign currurl = '' -%}
+    {%- if loopvmf -%}
+      {%- if loopvmf.value and loopvmf.value != blank -%}
+        {%- assign currurl = loopvmf.value | image_url: width: 2048 -%}
+        {%- if currurl == blank -%}{%- assign currurl = loopvmf.value | file_url -%}{%- endif -%}
+        {%- if currurl == blank -%}{%- assign currurl = loopvmf.value -%}{%- endif -%}
+      {%- else -%}
+        {%- assign currurl = loopvmf -%}
+      {%- endif -%}
+    {%- endif -%}
+    {%- assign price = v.price | money_without_currency | replace: ',', '.' -%}
+    <div data-variant-id="{{ v.id }}" {% if currurl != blank %}data-wd-picture="{{ currurl | escape }}"{% endif %} data-wd-price="{{ price }}"></div>
+  {%- endfor -%}
+</div>
+
+<script>
+(function(){
+  var s=document.createElement('script');
+  // Prefer versioned filename to break caches; fallback to querystring variant
+  var primary='https://app.wirzapp.ch/wpd-launcher-20250902-10.js';
+  var fallback='https://app.wirzapp.ch/wpd-launcher.js?v=20250902-10';
+  s.src=primary; s.defer=true;
+  s.onerror=function(){ try{ var f=document.createElement('script'); f.src=fallback; f.defer=true; document.head.appendChild(f); }catch(_){} };
+  document.head.appendChild(s);
+})();
+</script>

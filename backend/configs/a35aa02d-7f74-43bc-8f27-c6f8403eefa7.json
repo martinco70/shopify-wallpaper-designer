@@ -1,0 +1,21 @@
+{
+  "id": "a35aa02d-7f74-43bc-8f27-c6f8403eefa7",
+  "code": "A5CA01",
+  "createdAt": "2025-09-08T07:39:08.660Z",
+  "status": "draft",
+  "wall": {
+    "widthCm": 250,
+    "heightCm": 200
+  },
+  "print": {
+    "widthCm": 240,
+    "heightCm": 190
+  },
+  "image": {
+    "url": "https://via.placeholder.com/1200x800.png?text=Sample"
+  },
+  "transform": {
+    "zoom": 1
+  },
+  "areaM2": "4.560"
+}

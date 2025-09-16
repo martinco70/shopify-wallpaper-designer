@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tapeten-Konfigurator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Proza+Libre:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-family: "Proza Libre", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --font-size-base: 16px;
+      --line-height: 1.55;
+      --text: #222;
+      --muted: #666;
+      --bg: #fff;
+      --border: #e6e6e6;
+      --radius: 0px;
+      --accent: #0078d4;
+      --ui-bg: #F4F2EC;
+      --zoom-accent: #8C6A00;
+      --zoom-accent-rgb: 140, 106, 0;
+      --focus: #2b73d2;
+      --h1: clamp(1.9rem, 2.4vw, 2.4rem);
+      --h2: clamp(1.3rem, 1.8vw, 1.6rem);
+      --h3: 1.125rem;
+    }
+    html, body { height: 100%; }
+    html { font-size: var(--font-size-base); }
+    body {
+      margin: 0;
+      font-family: var(--font-family);
+      line-height: var(--line-height);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      color: var(--text);
+      background: var(--bg);
+    }
+    h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.2; margin: 0 0 0.75rem; }
+    h1 { font-size: var(--h1); }
+    h2 { font-size: var(--h2); }
+    h3 { font-size: var(--h3); }
+    p { margin: 0 0 0.75rem; color: var(--text); }
+    small, .muted { color: var(--muted); }
+    button {
+      font-family: inherit; font-weight: 600; font-size: 0.95rem; line-height: 1.1;
+      padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--ui-bg); color: var(--text);
+      cursor: pointer; transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+    button:hover { background: #E9E5D7; }
+    button:active { background: #E1DCCB; }
+    button:focus { outline: none; box-shadow: 0 0 0 3px rgba(var(--zoom-accent-rgb), 0.25); border-color: var(--zoom-accent); }
+    button[disabled] { opacity: 0.6; cursor: not-allowed; }
+    input, select, textarea {
+      font-family: inherit; font-size: 1rem; line-height: 1.2;
+      padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: #fff; color: var(--text);
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--zoom-accent); box-shadow: 0 0 0 3px rgba(var(--zoom-accent-rgb), 0.2); }
+    input::placeholder { color: #9aa3ab; }
+    label { margin-right: 8px; }
+    input[type="checkbox"], input[type="radio"] { accent-color: var(--zoom-accent); }
+    input[type="checkbox"]:focus, input[type="radio"]:focus { outline: none; box-shadow: 0 0 0 3px rgba(var(--zoom-accent-rgb), 0.25); border-color: var(--zoom-accent); }
+    /* Layout helpers for the mount */
+    .container { min-height: 100%; display: flex; flex-direction: column; }
+    .header { padding: 16px 20px; border-bottom: 1px solid var(--border); background: #fff; }
+    .content { flex: 1; position: relative; }
+    .mount { position: absolute; inset: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Tapeten-Konfigurator</h1>
+      <p class="muted" style="margin-top:6px">Ziehe das Bild mit der Maus, um es im Rahmen zu verschieben und den Ausschnitt für deine Wand zu bestimmen.</p>
+    </div>
+    <div class="content">
+      <div id="mount" class="mount" data-wallpaper-designer></div>
+    </div>
+  </div>
+  <script>
+    (function(){
+      var params = new URLSearchParams(location.search);
+      var backend = params.get('backend') || (location.origin);
+      var shop = params.get('shop') || '';
+      var productId = params.get('productId') || '';
+      var sku = params.get('sku') || '';
+      var mount = document.getElementById('mount');
+      if (mount) {
+        if (backend) mount.setAttribute('data-backend', backend);
+        if (shop) mount.setAttribute('data-shop', shop);
+        if (productId) mount.setAttribute('data-product-id', productId);
+        if (sku) mount.setAttribute('data-sku', sku);
+      }
+  window.WALLPAPER_BACKEND = backend;
+  // Dynamically insert widget.js from the backend origin
+  var s = document.createElement('script');
+  s.src = backend.replace(/\/$/, '') + '/widget.js';
+  s.defer = true;
+  document.head.appendChild(s);
+    })();
+  </script>
+  
+</body>
+  
+</html>
