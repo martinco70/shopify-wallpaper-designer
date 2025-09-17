@@ -33,3 +33,10 @@
 
 Siehe `docs/deployment-node.md` für den vollständigen Produktionsleitfaden (PM2, Environment, signierte PDF-Links, Smoke Tests).
 
+## CI
+
+[![CI](https://github.com/martinco70/shopify-wallpaper-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/martinco70/shopify-wallpaper-designer/actions/workflows/ci.yml)
+
+- Baut Backend und Frontend bei Push/PR auf main.
+- Lint-/Test-Schritte werden nur ausgeführt, wenn Skripte in package.json vorhanden sind.
+

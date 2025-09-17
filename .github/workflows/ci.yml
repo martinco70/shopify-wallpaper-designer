@@ -2,34 +2,55 @@ name: CI
 
 on:
   push:
-    branches: [ main, refactor-next ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch: {}
+    branches: [ "main" ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-test:
+  build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node 20
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '18'
           cache: 'npm'
-          cache-dependency-path: backend/package.json
-      - name: Install deps
-        run: npm install
-      - name: Run tests
-        run: npm test
-      - name: Backup artifact
-        run: npm run backup
-      - name: Upload backup
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-backup-${{ github.sha }}
-          path: backend/backups/*
-          if-no-files-found: ignore
+
+      - name: Backend install
+        working-directory: backend
+        run: npm ci
+
+      - name: Backend lint (if present)
+        working-directory: backend
+        run: npm run -s lint --if-present
+
+      - name: Backend test (if present)
+        working-directory: backend
+        run: npm run -s test --if-present
+
+      - name: Backend build (if present)
+        working-directory: backend
+        run: npm run -s build --if-present
+
+      - name: Frontend install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend lint (if present)
+        working-directory: frontend
+        run: npm run -s lint --if-present
+
+      - name: Frontend test (if present)
+        working-directory: frontend
+        run: npm run -s test --if-present
+
+      - name: Frontend build (if present)
+        working-directory: frontend
+        run: npm run -s build --if-present
