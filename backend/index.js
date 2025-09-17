@@ -695,8 +695,8 @@ app.get('/auth/callback', async (req, res) => {
     const token = data.access_token;
     const shopName = normalizeShopName(shop);
     saveToken(shopName, token);
-    // Minimal app page after install
-    res.redirect(`/app?shop=${shopName}.myshopify.com`);
+    // NEU: Nach erfolgreicher Installation ins Admin-Apps-UI umleiten (liefert host-Param automatisch)
+    return res.redirect(`https://${shopName}.myshopify.com/admin/apps/${OAUTH.API_KEY}`);
   } catch (e) {
     res.status(500).send('Auth callback error');
   }
@@ -741,14 +741,19 @@ app.get('/app', (req, res) => {
     (function(){
       try {
         var AppBridge = window['app-bridge'];
-  var host = ${JSON.stringify(String(req.query.host || ''))};
+        var host = ${JSON.stringify(String(req.query.host || ''))};
         var apiKey = ${JSON.stringify(OAUTH.API_KEY)};
-  var disable = ${disableAB ? 'true' : 'false'};
-  if (!disable && AppBridge && apiKey && host) {
+        var shop = ${JSON.stringify(`${shopName}.myshopify.com`)};
+        var disable = ${disableAB ? 'true' : 'false'};
+
+        // NEU: Fallback – wenn kein host vorhanden (z. B. direkter Aufruf nach OAuth), ins Admin-Apps-UI springen
+        if (!disable && !host && shop && apiKey) {
+          try { window.top.location.href = 'https://' + shop + '/admin/apps/' + apiKey; return; } catch (e) {}
+        }
+
+        if (!disable && AppBridge && apiKey && host) {
           var app = AppBridge.createApp({ apiKey: apiKey, host: host, forceRedirect: true });
-          // Optionally, set a title bar here
-  } else if (!disable && window.createApp && apiKey && host) {
-          // some versions expose createApp at window
+        } else if (!disable && window.createApp && apiKey && host) {
           window.createApp({ apiKey: apiKey, host: host, forceRedirect: true });
         }
       } catch (e) { /* noop */ }

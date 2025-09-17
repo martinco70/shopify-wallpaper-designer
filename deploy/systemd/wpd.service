@@ -1,0 +1,17 @@
+[Unit]
+Description=Wallpaper Designer Backend
+After=network.target
+
+[Service]
+Type=simple
+User=wpd
+Group=wpd
+WorkingDirectory=/opt/shopify-wallpaper-designer
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/shopify-wallpaper-designer.env
+ExecStart=/usr/bin/node backend/index.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
