@@ -3,6 +3,8 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+// Load environment variables from .env early (harmless if file missing)
+try { require('dotenv').config(); } catch (_) {}
 const multer = require('multer');
 const sharp = require('sharp');
 // fetch: Node 18+ global; fallback dynamic require if older (ignored errors)
@@ -201,6 +203,15 @@ function rateLimitSimple({ max = 60, windowMs = 60_000 }) {
     }
   };
 }
+// NEU: Periodische Bereinigung abgelaufener Buckets
+setInterval(() => {
+  try {
+    const now = Date.now();
+    for (const [key, bucket] of rateBuckets) {
+      if (!bucket || now >= bucket.reset) rateBuckets.delete(key);
+    }
+  } catch (_) {}
+}, 60_000).unref?.();
 
 const Shopify = require('shopify-api-node');
 function normalizeShopName(input) {
@@ -239,8 +250,21 @@ const tokenPathFor = (shop) => path.join(TOKENS_DIR, `${normalizeShopName(shop)}
 const getStoredToken = (shop) => {
   try {
     const p = tokenPathFor(shop);
-    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8')).access_token;
-  } catch {}
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, 'utf8');
+      try {
+        return JSON.parse(raw).access_token;
+      } catch (e) {
+        if (process.env.DEBUG_SHOPIFY_TOKEN) {
+          console.warn('[shopify][debug] token JSON parse failed', { file: p, error: e.message, sample: raw.slice(0,120) });
+        }
+      }
+    }
+  } catch (e) {
+    if (process.env.DEBUG_SHOPIFY_TOKEN) {
+      console.warn('[shopify][debug] unexpected error reading token', e?.message || e);
+    }
+  }
   return null;
 };
 const saveToken = (shop, token) => {
@@ -251,9 +275,108 @@ const saveToken = (shop, token) => {
   }
 };
 
+// NEU: Shop aus Token-Verzeichnis raten (wenn kein shop-Param übergeben wurde)
+function guessShopFromTokens() {
+  try {
+    if (!fs.existsSync(TOKENS_DIR)) return null;
+    const files = fs.readdirSync(TOKENS_DIR).filter(f => f.endsWith('.json'));
+    if (!files.length) return null;
+    // bevorzugt exakten 'aahoma.json', sonst den ersten Eintrag
+    const pick = files.includes('aahoma.json') ? 'aahoma.json' : files[0];
+    return normalizeShopName(path.basename(pick, '.json'));
+  } catch { return null; }
+}
+
+// Debug endpoint to verify token discovery logic (requires DEBUG_SHOPIFY_TOKEN to be truthy)
+app.get('/debug/token-check', (req, res) => {
+  if (!process.env.DEBUG_SHOPIFY_TOKEN) return res.status(403).json({ error: 'disabled' });
+  try {
+    const rawShop = req.query.shop || legacyShopName;
+    const normalized = normalizeShopName(rawShop);
+    const expectedFile = tokenPathFor(normalized);
+    let exists = false, raw = '', parsed = null, parseError = null;
+    try { exists = fs.existsSync(expectedFile); } catch {}
+    if (exists) {
+      try { raw = fs.readFileSync(expectedFile, 'utf8'); } catch (e) { parseError = 'read_error:' + e.message; }
+      if (raw) {
+        try { parsed = JSON.parse(raw); } catch (e) { parseError = 'json_error:' + e.message; }
+      }
+    }
+    return res.json({
+      shopParam: rawShop,
+      normalized,
+      expectedFile,
+      exists,
+      rawSample: raw.slice(0, 120),
+      hasAccessTokenKey: Boolean(parsed && Object.prototype.hasOwnProperty.call(parsed, 'access_token')),
+      accessTokenPrefix: parsed && parsed.access_token ? parsed.access_token.slice(0, 12) + '...' : null,
+      parseError
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'debug_failed', details: e?.message || String(e) });
+  }
+}); // moved closing brace up; removed accidental nested /debug/env
+
+// Standalone runtime env check (not nested)
+app.get('/debug/env', (req, res) => {
+  const raw = String(process.env.SHOPIFY_ACCESS_TOKEN || '');
+  const sanitized = raw.trim().replace(/^['"]|['"]$/g, '');
+
+  // Zusatz: Shop/Token-Datei-Infos
+  const shopName = normalizeShopName(process.env.SHOPIFY_SHOP || legacyShopName);
+  let expectedFile = null, exists = false, sample = null;
+  try {
+    expectedFile = tokenPathFor(shopName);
+    exists = fs.existsSync(expectedFile);
+    if (exists) {
+      const rawFile = fs.readFileSync(expectedFile, 'utf8');
+      sample = rawFile.slice(0, 80);
+    }
+  } catch {}
+
+  res.json({
+    SHOPIFY_SHOP: process.env.SHOPIFY_SHOP || null,
+    normalizedShop: shopName,
+    has_SHOPIFY_ACCESS_TOKEN: Boolean(sanitized),
+    DEBUG_SHOPIFY_TOKEN: process.env.DEBUG_SHOPIFY_TOKEN || null,
+    expectedTokenFile: expectedFile,
+    tokenFileExists: exists,
+    tokenFileSample: sample,
+    cwd: process.cwd()
+  });
+});
+
+// Debug: Token speichern (nur wenn DEBUG_SHOPIFY_TOKEN gesetzt ist)
+app.post('/debug/token-save', (req, res) => {
+  if (!process.env.DEBUG_SHOPIFY_TOKEN) return res.status(403).json({ error: 'disabled' });
+  try {
+    const shopRaw = req.body && (req.body.shop || process.env.SHOPIFY_SHOP) || legacyShopName;
+    const tokenRaw = req.body && req.body.token;
+    if (!tokenRaw) return res.status(400).json({ error: 'missing_token' });
+    const shopName = normalizeShopName(shopRaw);
+    const token = String(tokenRaw).trim().replace(/^['"]|['"]$/g, '');
+    saveToken(shopName, token);
+    const file = tokenPathFor(shopName);
+    return res.json({
+      ok: true,
+      shop: `${shopName}.myshopify.com`,
+      file,
+      tokenPrefix: token.slice(0, 8) + '...'
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'save_failed', details: e?.message || String(e) });
+  }
+});
+
+
 const getShopFromReq = (req) => {
   const q = req.query.shop || req.headers['x-shopify-shop-domain'] || req.headers['x-shopify-shop'];
-  const name = normalizeShopName(q || legacyShopName);
+  let name = q ? normalizeShopName(q) : null;
+  if (!name) {
+    const fromTokens = guessShopFromTokens();
+    if (fromTokens) name = fromTokens;
+  }
+  if (!name) name = legacyShopName;
   return `${name}.myshopify.com`;
 };
 
@@ -275,15 +398,45 @@ function shopFromHostParam(hostParam) {
 function clientFor(req) {
   const shopDomain = getShopFromReq(req); // like mystore.myshopify.com
   const shopName = normalizeShopName(shopDomain);
-  const token = getStoredToken(shopName);
-  if (token) return new Shopify({ shopName, accessToken: token });
-  if (legacyClient) return legacyClient; // fallback
+  // 1) Datei-Token
+  const fileToken = getStoredToken(shopName);
+  if (fileToken) return new Shopify({ shopName, accessToken: fileToken });
+
+  // 2) NEU: Dynamischer Env-Fallback (trim + versehentliche Quotes entfernen)
+  const envTokenRaw = String(process.env.SHOPIFY_ACCESS_TOKEN || '');
+  const envToken = envTokenRaw.trim().replace(/^['"]|['"]$/g, '');
+  if (envToken) {
+    const envShop = normalizeShopName(process.env.SHOPIFY_SHOP || shopName);
+    return new Shopify({ shopName: envShop, accessToken: envToken });
+  }
+
+  // 3) Legacy-Client (falls vorhanden)
+  if (legacyClient) return legacyClient;
+
+  // 4) Diagnose bei fehlendem Token
+  if (process.env.DEBUG_SHOPIFY_TOKEN) {
+    try {
+      const p = tokenPathFor(shopName);
+      const exists = fs.existsSync(p);
+      let raw = '';
+      if (exists) {
+        try { raw = fs.readFileSync(p, 'utf8'); } catch (e) { raw = `[read_error:${e.message}]`; }
+      }
+      console.warn('[shopify][debug] missing_shop_token', {
+        shopDomain, shopName, tokenFile: p, exists, sample: raw.slice(0, 160),
+        hasEnvToken: Boolean(envToken), envShop: process.env.SHOPIFY_SHOP || null
+      });
+    } catch (e) {
+      console.warn('[shopify][debug] failed diagnostics', e?.message || e);
+    }
+  }
   throw new Error('missing_shop_token');
 }
 
 // Minimal HMAC validator
 function validHmac(query) {
   const { hmac, ...rest } = query;
+  if (!hmac) return false;
   const msg = Object.keys(rest)
     .sort()
     .map(k => `${k}=${Array.isArray(rest[k]) ? rest[k].join(',') : rest[k]}`)
@@ -292,7 +445,14 @@ function validHmac(query) {
     .createHmac('sha256', OAUTH.API_SECRET)
     .update(msg)
     .digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(hmac, 'utf8'), Buffer.from(digest, 'utf8'));
+  try {
+    const a = Buffer.from(String(hmac), 'utf8');
+    const b = Buffer.from(String(digest), 'utf8');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 // Simple state store (memory)
@@ -364,6 +524,57 @@ app.get('/shopify/health', async (req, res) => {
     const status = err.statusCode || err.status || 500;
     const details = err?.response?.body || err?.body || undefined;
     return res.status(500).json({ ok: false, error: err.message, status, details });
+  }
+});
+
+// NEU: detaillierte Diagnose für Health (Shop-Auswahl + Tokenquelle)
+app.get('/shopify/health-diag', async (req, res) => {
+  try {
+    const qShop = String(req.query.shop || '');
+    const chosenDomain = getShopFromReq(req);
+    const chosenName = normalizeShopName(chosenDomain);
+    let tokenSource = 'none';
+    let tokenPreview = null;
+
+    // Quelle ermitteln
+    const fileTok = getStoredToken(chosenName);
+    if (fileTok) { tokenSource = 'file'; tokenPreview = fileTok.slice(0, 8) + '...'; }
+    else {
+      const envTok = String(process.env.SHOPIFY_ACCESS_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
+      if (envTok) { tokenSource = 'env'; tokenPreview = envTok.slice(0, 8) + '...'; }
+      else if (legacyClient) tokenSource = 'legacy';
+    }
+
+    // Testcall
+    try {
+      const shopify = clientFor(req);
+      const shop = await shopify.shop.get();
+      return res.json({
+        ok: true,
+        queryShop: qShop || null,
+        chosenDomain,
+        chosenName,
+        tokenSource,
+        tokenPreview,
+        shop: { name: shop.name, domain: shop.myshopify_domain }
+      });
+    } catch (e) {
+      const status = e.statusCode || e.status || 500;
+      const details = e?.response?.body || e?.body || undefined;
+      return res.status(500).json({
+        ok: false,
+        queryShop: qShop || null,
+        chosenDomain,
+        chosenName,
+        tokenSource,
+        tokenPreview,
+        error: e.message,
+        status,
+        details
+      });
+    }
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'diag_failed', details: e?.message || String(e) });
   }
 });
 
@@ -549,8 +760,7 @@ app.get('/app', (req, res) => {
 app.all(['/admin/materials', '/materials', '/materials/*'], (req, res) => {
   res.status(410).json({ error: 'Die Materialverwaltung ist nicht mehr verfügbar.' });
 });
-// Statische Bereitstellung der Uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Serve the Designer frontend
 try {
   const designerDist = path.join(__dirname, '..', 'frontend', 'dist');
@@ -598,6 +808,7 @@ app.get(/^\/wpd-launcher-\d{8}-\d{2}\.js$/, (req, res) => {
     return res.status(404).end();
   }
 });
+
 const port = process.env.PORT ? Number(process.env.PORT) : 3001;
 
 // Speicherort für hochgeladene Dateien
@@ -719,10 +930,16 @@ app.get('/health/ghostscript', async (req, res) => {
 
 // Bild-Upload-Endpunkt
 app.post('/upload', upload.single('wallpaper'), async (req, res) => {
+  // Früh prüfen, ob Multer eine Datei akzeptiert hat (fileFilter kann false liefern)
+  if (!req.file) {
+    return res.status(400).json({ error: 'Ungültiger oder fehlender Upload. Erlaubte Dateitypen: JPG, TIFF, EPS, SVG, PDF.' });
+  }
+
   // PATCH: Logging und Speicherung von Endung/MIME-Type
   const uploadExt = getFileExtension(req.file.originalname);
   const uploadMime = req.file.mimetype;
   const uploadPath = req.file.path;
+
   // Versuche, echten Typ mit file-type zu erkennen (falls installiert)
   let detectedExt = null, detectedMime = null;
   try {
@@ -732,9 +949,8 @@ app.post('/upload', upload.single('wallpaper'), async (req, res) => {
       detectedExt = ft.ext;
       detectedMime = ft.mime;
     }
-  } catch (e) {
-    // file-type nicht installiert oder Fehler ignorieren
-  }
+  } catch {}
+
   console.log('[upload-filetype]', {
     originalname: req.file.originalname,
     mimetype: uploadMime,
@@ -743,10 +959,6 @@ app.post('/upload', upload.single('wallpaper'), async (req, res) => {
     detectedMime,
     path: uploadPath
   });
-  if (!req.file) {
-    return res.status(400).json({ error: 'Ungültiger oder fehlender Upload. Erlaubte Dateitypen: JPG, TIFF, EPS, SVG, PDF.' });
-  }
-  console.log(`Datei hochgeladen: ${req.file.filename}`);
 
   // Preview erzeugen
   const uploadsDir = path.join(__dirname, 'uploads');
@@ -875,12 +1087,11 @@ app.post('/upload', upload.single('wallpaper'), async (req, res) => {
       return res.status(500).json({ error: 'preview_failed', details: (stderr || e?.message || '').slice(0, 500) });
     }
   }
-  // PATCH: Endung/MIME-Type im image-Objekt speichern
-  // PATCH: isVectorOrPdf robust bestimmen
+  // PATCH: Endung/MIME-Type im image-Objekt speichern und robuste Vektor/PDF-Erkennung
   const fileMeta = {
     url: req.file && req.file.path ? req.file.path : '',
     mimetype: req.file && req.file.mimetype ? req.file.mimetype : '',
-    detectedMime: req.file && req.file.detectedMime ? req.file.detectedMime : '',
+    detectedMime: detectedMime || '',
     filename: req.file && req.file.originalname ? req.file.originalname : '',
   };
   const isVectorOrPdf = isVectorOrPdfFile({
@@ -889,7 +1100,8 @@ app.post('/upload', upload.single('wallpaper'), async (req, res) => {
     detectedMime: fileMeta.detectedMime,
     filename: fileMeta.filename
   });
-  res.json({
+
+  return res.json({
     message: 'Datei erfolgreich hochgeladen!',
     filename: req.file.filename,
     preview,
@@ -984,7 +1196,6 @@ app.get('/health/imagemagick/formats', async (req, res) => {
         resolve(stdout);
       });
       setTimeout(() => { try { child.kill('SIGKILL'); } catch {} reject({ message: 'timeout' }); }, 5000);
-// Entfernt: SyntaxError durch verwaiste JSON-Response
     });
     const lines = (out || '').split(/\r?\n/).filter(l => /(PDF|PS|EPS)/i.test(l));
     res.json({ ok: true, formats: lines });
@@ -1014,9 +1225,27 @@ app.get('/healthz', (req, res) => {
   res.json({ ok: true });
 });
 
+// NEU: 404-Handler für unbekannte Routen
+app.use((req, res) => {
+  res.status(404).json({ error: 'not_found' });
+});
+
+// NEU: Zentrale Fehlerbehandlung
+app.use((err, req, res, next) => {
+  try { console.error('[unhandled]', err && err.stack || err); } catch {}
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'internal_error' });
+});
+
 // --- Server Start (nur wenn direkt gestartet) ---
 // Für Tests (supertest) exportieren wir die App, ohne sofort zu lauschen.
 if (require.main === module) {
+  // NEU: Prozessweite Fehlerlogs
+  try {
+    process.on('unhandledRejection', (e) => console.error('[process] unhandledRejection', e && e.stack || e));
+    process.on('uncaughtException', (e) => console.error('[process] uncaughtException', e && e.stack || e));
+  } catch (_) {}
+
   const bindHost = process.env.BIND_HOST || '0.0.0.0';
   const server = app.listen(port, bindHost, () => {
     console.log(`Backend läuft auf http://${bindHost === '0.0.0.0' ? 'localhost' : bindHost}:${port}`);
@@ -1033,7 +1262,6 @@ if (require.main === module) {
   server.on('error', (err) => console.error('[server] error event', err && err.message || err));
 }
 
-module.exports = app;
 // Periodic keepalive nur aktiv, wenn Skript direkt läuft
 if (require.main === module) {
   setInterval(() => {
