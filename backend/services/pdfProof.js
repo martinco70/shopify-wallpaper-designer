@@ -4,6 +4,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 const sharp = (() => { try { return require('sharp'); } catch { return null; } })();
 let PDFDocument = null;
 try { PDFDocument = require('pdfkit'); } catch { /* Fallback handled vom Aufrufer */ }
@@ -124,17 +126,65 @@ async function buildProofPdf(data, { code }) {
       }
       return null;
     }
+    // Remote Fetch (Option 1): holt HTTP(S)-Bilder als Buffer, mit Timeout und Limit
+    function isHttpUrl(u) {
+      return typeof u === 'string' && /^https?:\/\//i.test(u);
+    }
+    function fetchUrlBuffer(urlStr, { timeoutMs = 10000, maxBytes = 50 * 1024 * 1024 } = {}) {
+      return new Promise((resolve, reject) => {
+        try {
+          if (!isHttpUrl(urlStr)) return reject(new Error('Not an http(s) URL'));
+          const lib = urlStr.startsWith('https') ? https : http;
+          const req = lib.get(urlStr, { headers: { 'User-Agent': 'WPD-PDF/1.0' } }, (res) => {
+            if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              // Follow one redirect
+              try { res.destroy(); } catch {}
+              return fetchUrlBuffer(res.headers.location, { timeoutMs, maxBytes }).then(resolve, reject);
+            }
+            if (!res.statusCode || res.statusCode >= 400) {
+              return reject(new Error('HTTP ' + res.statusCode));
+            }
+            const chunks = []; let total = 0;
+            res.on('data', (d) => {
+              total += d.length;
+              if (total > maxBytes) {
+                try { res.destroy(); } catch {}
+                return reject(new Error('Image too large'));
+              }
+              chunks.push(d);
+            });
+            res.on('end', () => {
+              try { resolve(Buffer.concat(chunks)); } catch (e) { reject(e); }
+            });
+          });
+          req.setTimeout(timeoutMs, () => { try { req.destroy(new Error('Timeout')); } catch {} });
+          req.on('error', reject);
+        } catch (err) { reject(err); }
+      });
+    }
     // 1) preview (JPEG) für Anzeige
     if (data.image && typeof data.image.preview === 'string') {
       const p = resolveAny(data.image.preview); if (p) { try { imgBuf = fs.readFileSync(p); resolvedPreview = p; } catch {} }
+      if (!imgBuf && isHttpUrl(data.image.preview)) {
+        try { imgBuf = await fetchUrlBuffer(data.image.preview); resolvedPreview = data.image.preview; } catch {}
+      }
     }
     // 2) Haupt-> Anzeige falls kein Preview
     if (!imgBuf && data.image && typeof data.image.url === 'string') {
       const p = resolveAny(data.image.url); if (p) { try { imgBuf = fs.readFileSync(p); } catch {} }
+      if (!imgBuf && isHttpUrl(data.image.url)) {
+        // Keine Vektoren/PDF vom Netz holen (nicht darstellbar via Sharp/JPEG)
+        const skip = isVectorOrPdfFile({ url: data.image.url });
+        if (!skip) { try { imgBuf = await fetchUrlBuffer(data.image.url); } catch {} }
+      }
     }
     // 3) originalUrl als Anzeige falls weder preview noch url
     if (!imgBuf && data.image && typeof data.image.originalUrl === 'string') {
       const p = resolveAny(data.image.originalUrl); if (p) { try { imgBuf = fs.readFileSync(p); } catch {} }
+      if (!imgBuf && isHttpUrl(data.image.originalUrl)) {
+        const skip = isVectorOrPdfFile({ url: data.image.originalUrl });
+        if (!skip) { try { imgBuf = await fetchUrlBuffer(data.image.originalUrl); } catch {} }
+      }
     }
     // Original-Metadaten immer aus originalUrl bevorzugt
     let origPath = null;
@@ -152,6 +202,27 @@ async function buildProofPdf(data, { code }) {
         try { cropSourceBuf = fs.readFileSync(origPath); } catch {}
         metaSource = 'original';
       } catch { origMeta = null; }
+    } else if (sharp) {
+      // Remote Original-Metadaten: hole bevorzugt originalUrl, sonst url
+      const remoteOriginal = (data.image && typeof data.image.originalUrl === 'string' && isHttpUrl(data.image.originalUrl) && !isVectorOrPdfFile({ url: data.image.originalUrl }))
+        ? data.image.originalUrl
+        : (data.image && typeof data.image.url === 'string' && isHttpUrl(data.image.url) && !isVectorOrPdfFile({ url: data.image.url }))
+          ? data.image.url
+          : null;
+      if (remoteOriginal) {
+        try {
+          const buf = await fetchUrlBuffer(remoteOriginal);
+          const meta = await sharp(buf).metadata();
+          if (meta && meta.width && meta.height) {
+            origMeta = meta;
+            uploadOrigW = uploadOrigW || meta.width;
+            uploadOrigH = uploadOrigH || meta.height;
+            cropSourceBuf = cropSourceBuf || buf;
+            resolvedOriginal = remoteOriginal;
+            metaSource = 'original-remote';
+          }
+        } catch {}
+      }
     }
     // Falls wir nur Preview als imgBuf haben, aber Original existiert, nutze Original für Crop
     if (!cropSourceBuf && resolvedOriginal) {
@@ -178,13 +249,11 @@ async function buildProofPdf(data, { code }) {
   // Jetzt Header zeichnen (nach Meta)
   let yCursor = 36;
   doc.fontSize(20).fillColor('#000').text('Gut zum Druck', { align: 'left' });
-  if (!isShopImg && uploadFilename) {
-    doc.fontSize(13).fillColor('#333').text(uploadFilename, margin, yCursor, { width: pageWidth - margin * 2, align: 'center' });
+  // Neuer Titel: Produktname falls vorhanden, sonst Dateiname, Originalgröße nicht mehr anzeigen
+  const displayTitle = shopTitle || uploadFilename || null;
+  if (displayTitle) {
+    doc.fontSize(13).fillColor('#333').text(displayTitle, margin, yCursor, { width: pageWidth - margin * 2, align: 'center' });
     yCursor += doc.currentLineHeight() + 2;
-    if (uploadOrigW && uploadOrigH) {
-      doc.fontSize(9).fillColor('#888').text(`Originalbildgröße (${metaSource}): ${uploadOrigW} x ${uploadOrigH} px`, margin, yCursor, { width: pageWidth - margin * 2, align: 'center' });
-      yCursor += doc.currentLineHeight() + 2;
-    }
   }
   codeCropY = yCursor + 1;
   yCursor += 2 * doc.heightOfString('Xy', { width: pageWidth - margin * 2 }) + 5;
@@ -197,60 +266,83 @@ async function buildProofPdf(data, { code }) {
   }
   // headerRendered flag entfernt (nicht genutzt)
 
+  // Anzeige-Basis weiterhin Druckmaß (voller Rahmen) – das sichtbare Bildmaß (W+10) wird später geclippt
   const printAspect = (printW > 0 && printH > 0) ? (printW / printH) : 1;
   let dispW = imgArea.w; let dispH = Math.round(dispW / Math.max(0.01, printAspect));
   if (dispH > imgArea.h) { dispH = imgArea.h; dispW = Math.round(dispH * printAspect); }
   const dispX = Math.round(imgArea.x + (imgArea.w - dispW) / 2);
   const dispY = Math.round(imgArea.y + (imgArea.h - dispH) / 2);
+  const cmToPx = (printW > 0) ? (dispW / printW) : 0;
+  const calc = data.calc || {};
+  // Extra-Übermaß aus Config oder robust aus Wand/Druck berechnen
+  let extraWhiteCm = Math.max(0, Number(calc.extraWhiteWidthCm) || 0);
+  const wallOffsetCm = (calc.wallOffsetCm != null) ? Number(calc.wallOffsetCm) : null;
+  const bahnWidthCm = Number(calc.bahnenbreiteCm) || null;
+  const stripsCount = Number(calc.strips) || null;
+  const overageSide = calc.overageSide === 'left' ? 'left' : 'right';
+  // Fallback: Wenn extraWhiteCm nicht übermittelt wurde, aber Bahnen-Modus erkennbar ist, aus Maßen ableiten
+  try {
+    // Wenn nicht explizit übermittelt, leiten wir das Übermaß immer robust aus Wand- und Druckmaß ab
+    if ((!Number.isFinite(extraWhiteCm)) || extraWhiteCm <= 0) {
+      if (wallW && printW) {
+        const imageWidth = wallW + 10; // sichtbares Bildmass (W+10)
+        extraWhiteCm = Math.max(0, printW - imageWidth);
+      } else {
+        extraWhiteCm = Math.max(0, extraWhiteCm || 0);
+      }
+    }
+  } catch {}
 
   let cropDataText = 'Crop data   left: –  top: –  width: –, height: –'; let cropW=0, cropH=0;
   // Flip Flags vorziehen, damit sie auch in Fallback-Zweig/außerhalb try sichtbar sind
   const flipH = !!(data.transform && data.transform.flipH);
   const flipV = !!(data.transform && data.transform.flipV);
-  if (imgBuf && sharp) { // cropSourceBuf wird ggf. auf imgBuf gesetzt
+  if (imgBuf) {
     try {
-      let iw = 1, ih = 1;
-  if (origMeta && origMeta.width && origMeta.height) { iw = Math.max(1, origMeta.width); ih = Math.max(1, origMeta.height); }
-  let centerXPct = Number((data.transform && data.transform.offsetXPct) || 0.5);
-  let centerYPct = Number((data.transform && data.transform.offsetYPct) || 0.5);
-  // Wichtig: Wir wenden jetzt den Flip physisch per sharp.flop()/flip() an.
-  // Daher KEINE zusätzliche Inversion der Center-Koordinaten mehr – sonst verschiebt sich der gewünschte Ausschnitt.
-      const zoom = Math.max(0.01, Number((data.transform && data.transform.zoom) || 1) || 1);
-      const aspect = Math.max(0.01, printAspect);
-      const coverScaleCmPerPx = Math.max((printW > 0 ? (printW / iw) : Infinity),(printH > 0 ? (printH / ih) : Infinity));
-  cropW = Math.max(1, Math.floor((printW / coverScaleCmPerPx) / zoom));
-  cropH = Math.max(1, Math.floor((printH / coverScaleCmPerPx) / zoom));
-      const targetH = Math.round(cropW / aspect);
-      if (targetH <= ih) cropH = Math.max(1, targetH); else cropW = Math.max(1, Math.round(cropH * aspect));
-      cropW = Math.min(cropW, iw); cropH = Math.min(cropH, ih);
-      const cx = Math.min(iw - 1, Math.max(0, Math.round(iw * centerXPct)));
-      const cy = Math.min(ih - 1, Math.max(0, Math.round(ih * centerYPct)));
-      let left = Math.round(cx - cropW / 2); let top = Math.round(cy - cropH / 2);
-      if (left < 0) left = 0; if (top < 0) top = 0; if (left + cropW > iw) left = iw - cropW; if (top + cropH > ih) top = ih - cropH;
-      cropDataText = `Crop data   left: ${left}  top: ${top}  width: ${cropW}, height: ${cropH}`;
-      // KORREKTE REIHENFOLGE: rotate -> extract (auf Original-Koordinaten) -> flips (Spiegelung des Ausschnitts) -> resize -> encode
-      let pipe = sharp(cropSourceBuf || imgBuf).rotate().extract({ left, top, width: cropW, height: cropH });
-      if (flipH) pipe = pipe.flop();
-      if (flipV) pipe = pipe.flip();
-      pipe = pipe.resize({ width: Math.max(2, Math.round(dispW)), height: Math.max(2, Math.round(dispH)), fit: 'fill' })
-        .sharpen()
-        .jpeg({ quality: 92, chromaSubsampling: '4:4:4' });
-      const processed = await pipe.toBuffer();
-      doc.image(processed, dispX, dispY, { width: dispW, height: dispH });
-    } catch (err) {
-      console.error('[pdf] image processing failed (module path):', err && err.message || err);
-      try {
-        let fb = sharp(cropSourceBuf || imgBuf).rotate().extract({ left:0, top:0, width: Math.min(cropW||1000, (origMeta?.width)||1000), height: Math.min(cropH||1000, (origMeta?.height)||1000) });
-        if (flipH) fb = fb.flop();
-        if (flipV) fb = fb.flip();
-        const fallback = await fb.resize({ width: Math.max(2, Math.round(dispW)), height: Math.max(2, Math.round(dispH)), fit: 'cover', position: 'centre' })
-          .sharpen()
-          .jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
-        doc.image(fallback, dispX, dispY, { width: dispW, height: dispH });
-      } catch (err2) {
-        console.error('[pdf] fallback failed:', err2 && err2.message || err2);
-        doc.fontSize(18).fillColor('#666').text('Bildfehler', imgArea.x, imgArea.y + imgArea.h/2 - 12, { width: imgArea.w, align: 'center' });
+      // Ermittele Naturalgröße
+      let iw = Math.max(1, uploadOrigW || 0), ih = Math.max(1, uploadOrigH || 0);
+      if ((!iw || !ih) && sharp) {
+        try { const meta = await sharp(imgBuf).metadata(); iw = meta.width || iw || 1; ih = meta.height || ih || 1; } catch {}
       }
+      // Flip per sharp, aber KEIN Crop/Resize – wir positionieren/skalieren wie im Frontend über Clip & Offsets
+      let processed = imgBuf;
+      if (sharp) {
+        try {
+          let p = sharp(imgBuf).rotate();
+          if (flipH) p = p.flop();
+          if (flipV) p = p.flip();
+          processed = await p.jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
+        } catch {}
+      }
+      const ox = Number((data.transform && data.transform.offsetXPct) || 0.5);
+      const oy = Number((data.transform && data.transform.offsetYPct) || 0.5);
+      const zoom = Math.max(0.01, Number((data.transform && data.transform.zoom) || 1) || 1);
+      // Sichtbare Breite in Punkten (Clipbreite)
+      const extraWhitePx = Math.round(Math.max(0, extraWhiteCm) * cmToPx);
+      const clipX = overageSide === 'left' ? (dispX + extraWhitePx) : dispX;
+      const clipW = Math.max(0, dispW - extraWhitePx);
+      const clipH = dispH;
+      // COVER-Skalierung auf sichtbaren Bereich wie im Frontend (visibleWidthPx x frameHeightPx)
+      let s = Math.max(clipW / iw, clipH / ih);
+      if (s > 1) s = 1;
+      const drawW = iw * s * zoom;
+      const drawH = ih * s * zoom;
+      const denomW = drawW; const denomH = drawH;
+      // Mittelpunkt des sichtbaren Bereichs
+      const centerX = ox * denomW;
+      const centerY = oy * denomH;
+      const posX = Math.round(clipX + (clipW / 2) - centerX);
+      const posY = Math.round(dispY + (clipH / 2) - centerY);
+      // Zeichnen: erst Clip + weiße Unterlage, dann Bild an posX/posY mit drawW/drawH
+      doc.save();
+      doc.rect(clipX, dispY, clipW, clipH).clip();
+      doc.rect(clipX, dispY, clipW, clipH).fill('#FFFFFF');
+      doc.image(processed, posX, posY, { width: drawW, height: drawH });
+      doc.restore();
+      cropDataText = `Cover like UI  draw: ${Math.round(drawW)}x${Math.round(drawH)}  pos: ${posX},${posY}  center%: ${ox.toFixed(3)},${oy.toFixed(3)}`;
+    } catch (err) {
+      console.error('[pdf] image placement failed:', err && err.message || err);
+      doc.fontSize(18).fillColor('#666').text('Bildfehler', imgArea.x, imgArea.y + imgArea.h/2 - 12, { width: imgArea.w, align: 'center' });
     }
   } else {
     doc.fontSize(18).fillColor('#666').text('Kein Bild', imgArea.x, imgArea.y + imgArea.h/2 - 12, { width: imgArea.w, align: 'center' });
@@ -261,16 +353,69 @@ async function buildProofPdf(data, { code }) {
   let afterCodeY = codeCropY + doc.currentLineHeight() + 0.5;
   doc.fontSize(10).fillColor('#333').text(cropDataText, margin, afterCodeY, { align: 'left' });
 
-  // Rahmen (PRINT + WALL)
+  // Rahmen (PRINT + WALL) – Wand-Offset relativ zum sichtbaren Druckbereich (abhängig von Übermass-Seite)
   doc.lineWidth(1).strokeColor('#444').rect(dispX, dispY, dispW, dispH).stroke();
   try {
     const ratioW = (printW > 0) ? (wallW / printW) : 1;
     const ratioH = (printH > 0) ? (wallH / printH) : 1;
     const innerW = Math.max(2, Math.round(dispW * ratioW));
     const innerH = Math.max(2, Math.round(dispH * ratioH));
-    const innerX = Math.round(dispX + (dispW - innerW) / 2);
+    const extraWhitePx = Math.round(extraWhiteCm * cmToPx);
+    const visibleStartX = overageSide === 'left' ? (dispX + extraWhitePx) : dispX;
+    const innerX = (wallOffsetCm != null && cmToPx)
+      ? Math.round(visibleStartX + wallOffsetCm * cmToPx)
+      : Math.round(dispX + (dispW - innerW) / 2);
     const innerY = Math.round(dispY + (dispH - innerH) / 2);
     doc.lineWidth(2).strokeColor('#c00').rect(innerX, innerY, innerW, innerH).stroke();
+  } catch {}
+
+  // Weißes Übermaß (links oder rechts) mit Schraffur (falls vorhanden)
+  try {
+    if (extraWhiteCm > 0 && cmToPx) {
+      const extraPx = Math.max(1, Math.round(extraWhiteCm * cmToPx));
+      const x = overageSide === 'right' ? (dispX + dispW - extraPx) : dispX;
+      const y = dispY; const w = extraPx; const h = dispH;
+      // Weiß füllen + Schraffur (Re-Aktivierung)
+      doc.save();
+      doc.fillOpacity(1);
+      doc.rect(x, y, w, h).fill('#FFFFFF');
+      // zweite Weißfüllung als Sicherheit (einige Renderer zeichnen 1px Kanten)
+      doc.rect(x, y, w, h).fill('#FFFFFF');
+      doc.restore();
+      // Schraffur: diagonale Linien
+      doc.save();
+      doc.rect(x, y, w, h).clip();
+      doc.lineWidth(0.7).strokeColor('#d5d5d5'); doc.strokeOpacity(0.85);
+      const step = 6;
+      for (let i = -h; i < w; i += step) {
+        doc.moveTo(x + i, y).lineTo(x + i + h, y + h).stroke();
+      }
+      doc.strokeOpacity(1);
+      doc.restore();
+      // Dünne Kante zur Abgrenzung
+      const edgeX = overageSide === 'right' ? x : (x + w);
+      doc.save().lineWidth(1).strokeColor('#ddd').moveTo(edgeX, y).lineTo(edgeX, y + h).stroke().restore();
+    }
+  } catch {}
+
+  // Bahnen-Grenzlinien (gestrichelt), falls Bahnenbreite/Anzahl bekannt – relativ zum sichtbaren Bereich
+  try {
+    if (bahnWidthCm && stripsCount && stripsCount > 1 && cmToPx) {
+      doc.save();
+      doc.strokeColor('#c00000'); doc.strokeOpacity(0.7).lineWidth(0.8).dash(3, { space: 3 });
+      const extraWhitePx = Math.round(extraWhiteCm * cmToPx);
+      const visibleLeftX = overageSide === 'left' ? (dispX + extraWhitePx) : dispX;
+      const visibleRightX = overageSide === 'right' ? (dispX + dispW - extraWhitePx) : (dispX + dispW);
+      for (let i = 1; i < stripsCount; i++) {
+        const x = (overageSide === 'left')
+          ? Math.round(visibleRightX - i * bahnWidthCm * cmToPx)
+          : Math.round(visibleLeftX + i * bahnWidthCm * cmToPx);
+        doc.moveTo(x, dispY).lineTo(x, dispY + dispH).stroke();
+      }
+      doc.undash();
+      doc.strokeOpacity(1);
+      doc.restore();
+    }
   } catch {}
 
   // Labels oben / links

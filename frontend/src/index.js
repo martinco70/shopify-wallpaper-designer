@@ -1216,6 +1216,25 @@ function App() {
             </div>
           )}
 
+          {/* Code-Eingabe (Duplikat ausserhalb der Dropzone) */}
+          <div style={{ marginBottom: 24, padding: '18px 12px', background: '#fff', borderRadius: 0, border: '1px solid #eee', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '1em', fontWeight: 'bold' }}>Konfigurations-Code</h3>
+            <div style={{ color: '#0a0', fontSize: '0.85em', marginBottom: 8 }}>
+              Hast du bereits eine Konfiguration erstellt? Gib den Code hier ein, um sie erneut zu laden.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                placeholder="Code einfügen"
+                value={codeInput || ''}
+                onChange={e => setCodeInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { const v = String(codeInput || '').trim(); if (v && onLoadByCode) onLoadByCode(v); } }}
+                style={{ flex: 1, height: 32, background: '#f6fff6', border: '1px solid #0a0', borderRadius: 0, padding: '6px 8px' }}
+              />
+              <button type="button" onClick={() => { const v = String(codeInput || '').trim(); if (v && onLoadByCode) onLoadByCode(v); }} style={{ background: 'var(--ui-bg)', height: 32 }}>Laden</button>
+            </div>
+          </div>
+
       {/* Size selection card */}
           <div style={{ marginBottom: 24, padding: '18px 12px', background: '#fff', borderRadius: 0, border: '1px solid #eee', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <h3 style={{ margin: '0 0 6px 0', fontSize: '1em', fontWeight: 'bold' }}>Wandmasse eingeben</h3>
