@@ -1,0 +1,1109 @@
+{
+	"$schema": "vscode://schemas/tasks",
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Backend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"start"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"isBackground": true,
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"start"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/frontend"
+			},
+			"isBackground": true,
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Fix 502 on app.wirzapp.ch (deploy + restart)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"ubuntu",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-10"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Fix 502 on app.wirzapp.ch as martin",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"martin",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-10"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Fix 502 on app.wirzapp.ch as martin",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"martin",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-10"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Start Backend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"start"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"start",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Frontend (8081)",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"webpack",
+				"serve",
+				"--mode",
+				"development",
+				"--port",
+				"8081",
+				"--config",
+				"frontend/webpack.config.js"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"start",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Frontend (PORT=8081)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"start:8081",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"start",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "build-frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Fix 502 on app.wirzapp.ch (deploy + restart)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"ubuntu",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-10"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Build frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "build-frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Deploy: Fix 502 on app.wirzapp.ch as martin",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"martin",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-10"
+			]
+		},
+		{
+			"label": "Deploy: Fix 502 to root@37.27.208.130",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-10"
+			]
+		},
+		{
+			"label": "Deploy: Designer via deploy-designer.ps1 (root@37.27.208.130)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-designer.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-12",
+				"-Build"
+			]
+		},
+		{
+			"label": "Verify deployment: fix-502.ps1 (root@37.27.208.130)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-12"
+			]
+		},
+		{
+			"label": "Deploy: Upload-only via deploy-designer.ps1 (root@37.27.208.130)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-designer.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-12"
+			]
+		},
+		{
+			"label": "Verify deployment (patched fix-502)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-12"
+			]
+		},
+		{
+			"label": "Switch theme to external launcher",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/switch-to-external-launcher.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-Version",
+				"20250902-12"
+			]
+		},
+		{
+			"label": "Switch theme to external launcher",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/switch-to-external-launcher.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-Version",
+				"20250902-12"
+			]
+		},
+		{
+			"label": "Switch theme to external launcher (re-run)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/switch-to-external-launcher.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-Version",
+				"20250902-12"
+			]
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Start Backend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"start"
+			],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Deploy backend (scp + pm2 reload)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-backend.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"martin",
+				"-Port",
+				"22",
+				"-Pm2Name",
+				"wallpaper-backend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy backend (root@37.27.208.130)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/deploy-backend.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-Port",
+				"22",
+				"-Pm2Name",
+				"wallpaper-backend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Sync Design Groups",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-design-groups.ps1",
+				"-Shop",
+				"yourstore.myshopify.com",
+				"-Token",
+				"__REPLACE_ME__"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Deploy product-siblings to theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/deploy-design-groups-to-theme.ps1",
+				"-ThemeRepo",
+				"C:/Users/Public/xtra-theme-shopify"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Fix 502 on app.wirzapp.ch (deploy + restart)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/fix-502.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"martin",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-10"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json"
+			],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build frontend",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (verify)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (verify gating)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (fix stray style)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (restore WD_FEATURE)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (blink + hide)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (no-jump tweaks)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (fix jumping)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend: build (fixed preview space)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
