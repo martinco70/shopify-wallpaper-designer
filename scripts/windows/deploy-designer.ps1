@@ -6,7 +6,9 @@ param(
   [int]$Port = 22,
   [switch]$Build,
   [string]$Version = '20250902-10',
-  [switch]$CleanOld
+  [switch]$CleanOld,
+  [switch]$DryRun,
+  [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +27,35 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repo = Resolve-Path (Join-Path $here '..\..')
 Set-Location $repo
 Write-Host "Repo root: $repo" -ForegroundColor Cyan
+
+# Pre-compute remote base locations for summary
+$remoteBase = if ($RemoteDir -match "/public/([^/]+)") { $RemoteDir -replace "/designer$","" } else { (Split-Path -Path $RemoteDir -Parent) }
+$backendPublic = $null
+if ($RemoteDir -match "/public/designer$") {
+  $backendPublic = $RemoteDir -replace "/public/designer$","/backend/public"
+}
+
+# Summary and confirmation
+$summary = @()
+if ($Build) { $summary += 'Build frontend (npm run build) and copy dist -> backend/public/designer' }
+$summary += ("Ensure remote dir: {0}@{1}:{2}" -f $User,$RemoteHost,$RemoteDir)
+$summary += ("Upload designer bundle -> {0}@{1}:{2}" -f $User,$RemoteHost,$RemoteDir)
+if ($remoteBase) { $summary += ("Upload wpd-launcher.js -> {0}@{1}:{2}" -f $User,$RemoteHost,$remoteBase) }
+if ($backendPublic) { $summary += ("Upload wpd-launcher.js -> {0}@{1}:{2}" -f $User,$RemoteHost,$backendPublic) }
+if ($CleanOld) { $summary += 'Clean old versioned launcher files on remote targets' }
+$summary += ("PM2 reload '{0}'" -f $Pm2Name)
+
+if ($DryRun) {
+  Write-Host '[dry-run] Planned actions:' -ForegroundColor Yellow
+  $summary | ForEach-Object { Write-Host (' - ' + $_) -ForegroundColor Yellow }
+  return
+}
+if (-not $Force) {
+  Write-Host 'Planned actions:' -ForegroundColor Cyan
+  $summary | ForEach-Object { Write-Host (' - ' + $_) }
+  $ans = Read-Host 'Proceed? (y/N)'
+  if ($ans -ne 'y') { Write-Host 'Aborted by user.' -ForegroundColor Yellow; return }
+}
 
 if ($Build) {
   Write-Host "Building frontend (production)..." -ForegroundColor Cyan
@@ -49,11 +80,6 @@ Write-Host ("Uploading designer bundle to {0}@{1}:{2}" -f $User,$RemoteHost,$Rem
 scp -P $Port -r "backend/public/designer/*" ("{0}@{1}:{2}/" -f $User,$RemoteHost,$RemoteDir)
 
 # Also upload launcher script to both the site root (public) and the designer directory
-$remoteBase = if ($RemoteDir -match "/public/([^/]+)") { $RemoteDir -replace "/designer$","" } else { (Split-Path -Path $RemoteDir -Parent) }
-${backendPublic} = $null
-if ($RemoteDir -match "/public/designer$") {
-  $backendPublic = $RemoteDir -replace "/public/designer$","/backend/public"
-}
 Write-Host ("Uploading launcher (wpd-launcher.js) to designer dir {0}@{1}:{2}" -f $User,$RemoteHost,$RemoteDir) -ForegroundColor Cyan
 try {
   scp -P $Port "backend/public/wpd-launcher.js" ("{0}@{1}:{2}/" -f $User,$RemoteHost,$RemoteDir)
