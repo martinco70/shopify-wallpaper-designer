@@ -71,8 +71,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/deploy-backe
 
 Unter `.vscode/tasks.json` stehen zusätzlich Tasks bereit:
 - Sync Theme (Dry Run) / (Force)
+- Sync Theme (Safety) – interaktiv: erst Dry Run, dann Nachfrage, dann Force
 - Deploy Designer (root) (Dry Run) / (Force)
+- Deploy Designer (root) (Safety)
 - Deploy backend … (Dry Run) / (Force)
+- Deploy backend … (Safety)
 
 So kannst du Deploys erst beurteilen und erst anschließend bewusst freigeben.
 
