@@ -20,12 +20,12 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Backend install
         working-directory: backend
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Backend lint (if present)
         working-directory: backend
@@ -41,7 +41,7 @@ jobs:
 
       - name: Frontend install
         working-directory: frontend
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Frontend lint (if present)
         working-directory: frontend
