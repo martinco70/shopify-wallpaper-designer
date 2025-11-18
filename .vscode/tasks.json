@@ -1104,6 +1104,311 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "frontend: build (verify)",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "frontend: build",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--silent",
+				"--prefix",
+				"frontend"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy Designer (root)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-designer.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-12",
+				"-Build"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+		,
+		{
+			"label": "Sync Theme (Dry Run)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json",
+				"-DryRun"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Sync Theme (Force)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/sync-theme.ps1",
+				"-RepoUrl",
+				"https://github.com/martinco70/xtra-theme-shopify.git",
+				"-Branch",
+				"main",
+				"-TargetDir",
+				"C:/Users/Public/xtra-theme-shopify",
+				"-SyncMap",
+				"${workspaceFolder}/sync-map.json",
+				"-Force"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Deploy Designer (root) (Dry Run)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-designer.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-12",
+				"-Build",
+				"-DryRun"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy Designer (root) (Force)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-designer.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-RemoteDir",
+				"/opt/wallpaper-app/public/designer",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Port",
+				"22",
+				"-Version",
+				"20250902-12",
+				"-Build",
+				"-Force"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy backend (scp + pm2 reload) (Dry Run)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-backend.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"martin",
+				"-Port",
+				"22",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-DryRun"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy backend (scp + pm2 reload) (Force)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/windows/deploy-backend.ps1",
+				"-RemoteHost",
+				"app.wirzapp.ch",
+				"-User",
+				"martin",
+				"-Port",
+				"22",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Force"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy backend (root@37.27.208.130) (Dry Run)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/deploy-backend.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-Port",
+				"22",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-DryRun"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy backend (root@37.27.208.130) (Force)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/windows/deploy-backend.ps1",
+				"-RemoteHost",
+				"37.27.208.130",
+				"-User",
+				"root",
+				"-Port",
+				"22",
+				"-Pm2Name",
+				"wallpaper-backend",
+				"-Force"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+		,
+		{
+			"label": "Sync Theme (Safety)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"& \"${workspaceFolder}/scripts/windows/sync-theme.ps1\" -RepoUrl \"https://github.com/martinco70/xtra-theme-shopify.git\" -Branch \"main\" -TargetDir \"C:/Users/Public/xtra-theme-shopify\" -SyncMap \"${workspaceFolder}/sync-map.json\" -DryRun; $ans = Read-Host 'Proceed? (y/N)'; if ($ans -eq 'y') { & \"${workspaceFolder}/scripts/windows/sync-theme.ps1\" -RepoUrl \"https://github.com/martinco70/xtra-theme-shopify.git\" -Branch \"main\" -TargetDir \"C:/Users/Public/xtra-theme-shopify\" -SyncMap \"${workspaceFolder}/sync-map.json\" -Force } else { Write-Host 'Aborted.' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy Designer (root) (Safety)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"& \"${workspaceFolder}/scripts/windows/deploy-designer.ps1\" -RemoteHost \"37.27.208.130\" -User \"root\" -RemoteDir \"/opt/wallpaper-app/public/designer\" -Pm2Name \"wallpaper-backend\" -Port 22 -Version \"20250902-12\" -Build -DryRun; $ans = Read-Host 'Proceed? (y/N)'; if ($ans -eq 'y') { & \"${workspaceFolder}/scripts/windows/deploy-designer.ps1\" -RemoteHost \"37.27.208.130\" -User \"root\" -RemoteDir \"/opt/wallpaper-app/public/designer\" -Pm2Name \"wallpaper-backend\" -Port 22 -Version \"20250902-12\" -Build -Force } else { Write-Host 'Aborted.' }"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Deploy backend (scp + pm2 reload) (Safety)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"& \"${workspaceFolder}/scripts/windows/deploy-backend.ps1\" -RemoteHost \"app.wirzapp.ch\" -User \"martin\" -Port 22 -Pm2Name \"wallpaper-backend\" -DryRun; $ans = Read-Host 'Proceed? (y/N)'; if ($ans -eq 'y') { & \"${workspaceFolder}/scripts/windows/deploy-backend.ps1\" -RemoteHost \"app.wirzapp.ch\" -User \"martin\" -Port 22 -Pm2Name \"wallpaper-backend\" -Force } else { Write-Host 'Aborted.' }"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }
