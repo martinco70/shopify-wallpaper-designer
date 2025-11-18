@@ -14,40 +14,15 @@ Voraussetzung: Produkt-Metafeld custom.designname (Text) ist gesetzt
   {%- assign group_code = group_raw.value | default: group_raw -%}
 {%- endif -%}
 
-{%- comment -%}
-  Optional: bevorzugtes Bild für Kartenansicht auf Kollektionsseiten
-  Wir lesen das Produkt-Metafeld custom.wd-picture (file_reference) und bauen eine Bild-URL.
-  Fallback: custom.wd_picture (Legacy-Key)
-{%- endcomment -%}
-{%- assign pmf = product.metafields['custom']['wd-picture'] -%}
-{%- if pmf == blank -%}{%- assign pmf = product.metafields['custom']['wd_picture'] -%}{%- endif -%}
-{%- assign pmf_url = blank -%}
-{%- if pmf -%}
-  {%- if pmf.value and pmf.value != blank -%}
-    {%- assign tmpurl = pmf.value | image_url: width: 1200 -%}
-    {%- if tmpurl == blank -%}{%- assign tmpurl = pmf.value | file_url -%}{%- endif -%}
-    {%- if tmpurl == blank -%}{%- assign tmpurl = pmf.value -%}{%- endif -%}
-    {%- assign pmf_url = tmpurl -%}
-  {%- else -%}
-    {%- assign pmf_url = pmf -%}
-  {%- endif -%}
-{%- endif -%}
 
 <div class="wpd-mini-swatches"
      data-group="{{ group_code | escape }}"
      data-handle="{{ product.handle }}"
   data-vendor="{{ product.vendor | escape }}"
      data-shop="{{ shop.permanent_domain }}"
-  {% if pmf_url != blank %}data-wd-picture="{{ pmf_url | escape }}"{% endif %}
      data-proxy-url="https://app.wirzapp.ch/api/siblings"
      aria-hidden="true"></div>
 
 {%- comment -%} Skript wird mehrfach inkludiert, guard im JS verhindert doppelte Initialisierung {%- endcomment -%}
 <script>window.__WPD_DISABLE_MIN25 = true;</script>
 <script src="{{ 'wpd-collection-swatches.js' | asset_url }}?v=2025-10-23-08" defer></script>
-{%- comment -%} Kartebild-Override nur einmal laden {%- endcomment -%}
-<script>
-  window.__WPD_CARD_IMG_LOADED = window.__WPD_CARD_IMG_LOADED || false;
-  if(!window.__WPD_CARD_IMG_LOADED){ window.__WPD_CARD_IMG_LOADED = true; }
-</script>
-<script src="{{ 'wpd-collection-card-image.js' | asset_url }}?v=2025-11-18-01" defer></script>

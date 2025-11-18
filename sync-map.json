@@ -49,11 +49,6 @@
   }
   ,
   {
-    "from": "backend/public/wpd-collection-card-image.js",
-    "to": "assets/wpd-collection-card-image.js"
-  }
-  ,
-  {
     "from": "theme-snippets/product-material-options.liquid",
     "to": "snippets/product-material-options.liquid"
   }
