@@ -6,6 +6,8 @@ on:
 
 jobs:
   deploy:
+    # Skip deployment entirely if required secrets are not configured.
+    if: github.ref == 'refs/heads/main' && secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,3 +32,9 @@ jobs:
             sudo -u wpd bash -lc 'cd /opt/shopify-wallpaper-designer/backend && npm ci'
             sudo -u wpd bash -lc 'cd /opt/shopify-wallpaper-designer/frontend && npm ci && npm run build'
             sudo systemctl restart wpd
+
+      - name: Deployment skipped (secrets missing)
+        if: !(secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '')
+        run: |
+          echo "Deployment skipped because one or more required secrets (SSH_HOST, SSH_USER, SSH_KEY) are not set." &&
+          echo "Set these in the repository settings under Settings > Secrets and variables > Actions to enable auto-deploy."
