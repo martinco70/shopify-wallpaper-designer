@@ -2,5 +2,84 @@
   {
     "from": "backend/public/wpd-launcher.js",
     "to": "assets/wpd-launcher.js"
+  },
+  {
+    "from": "theme-snippets/wpd-cart-properties.liquid",
+    "to": "snippets/wpd-cart-properties.liquid"
+  },
+  {
+    "from": "theme-snippets/wpd-launcher-button.liquid",
+    "to": "snippets/wpd-launcher-button.liquid"
+  },
+  {
+    "from": "theme-snippets/variant-guard.liquid",
+    "to": "snippets/variant-guard.liquid"
+  },
+  {
+    "from": "theme-sections/wpd-launcher-section.liquid",
+    "to": "sections/wpd-launcher-section.liquid"
+  },
+  {
+    "from": "theme-sections/product-siblings-v2.liquid",
+    "to": "sections/product-siblings-v2.liquid"
+  },
+  {
+    "from": "theme-snippets/product-siblings-inline.liquid",
+    "to": "snippets/product-siblings-inline.liquid"
+  },
+  {
+    "from": "backend/public/wpd-siblings-probe.js",
+    "to": "assets/wpd-siblings-probe.js"
+  },
+  {
+    "from": "backend/public/wpd-siblings-v2.js",
+    "to": "assets/wpd-siblings-v2.js"
+  },
+  {
+    "from": "theme-snippets/collection-mini-swatches.liquid",
+    "to": "snippets/collection-mini-swatches.liquid"
+  },
+  {
+    "from": "backend/public/wpd-collection-swatches.js",
+    "to": "assets/wpd-collection-swatches.js"
+  },
+  {
+    "from": "backend/public/wpd-collection-min25.js",
+    "to": "assets/wpd-collection-min25.js"
+  }
+  ,
+  {
+    "from": "backend/public/wpd-collection-card-image.js",
+    "to": "assets/wpd-collection-card-image.js"
+  }
+  ,
+  {
+    "from": "theme-snippets/product-material-options.liquid",
+    "to": "snippets/product-material-options.liquid"
+  }
+  ,
+  {
+    "from": "backend/public/wpd-siblings-inline.js",
+    "to": "assets/wpd-siblings-inline.js"
+  }
+  ,
+  {
+    "from": "backend/public/wpd-materials.js",
+    "to": "assets/wpd-materials.js"
+  }
+  ,
+  {
+    "from": "theme-sections/product-material-options-section.liquid",
+    "to": "sections/product-material-options.liquid"
+  }
+  ,
+  {
+    "from": "theme-snippets/product-material-options-block-doc.md",
+    "to": "assets/product-material-options-block-doc.md"
+  }
+  ,
+  {
+    "from": "theme-snippets/wpd-price-per-unit.liquid",
+    "to": "snippets/wpd-price-per-unit.liquid"
   }
 ]
