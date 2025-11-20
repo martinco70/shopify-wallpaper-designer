@@ -1,0 +1,554 @@
+{
+  "sections": {
+    "breadcrumbs": {
+      "type": "breadcrumbs",
+      "settings": {
+        "hide_mobile": true
+      }
+    },
+    "main-product": {
+      "type": "main-product",
+      "blocks": {
+        "c7259cb9-7235-4028-b6df-3a68077fed80": {
+          "type": "title",
+          "settings": {
+            "layout": "title-right",
+            "title_size": "h2",
+            "title": "",
+            "show_vendor_brand": false,
+            "show_vendor_name": true,
+            "show_product_rating": true,
+            "share_whatsapp": false,
+            "share_facebook": false,
+            "share_twitter": false,
+            "share_pinterest": false,
+            "share_messenger": false,
+            "share_email": false,
+            "layout_mobile": "title-top"
+          }
+        },
+        "short_description": {
+          "type": "short_description",
+          "settings": {
+            "show_read_more": true
+          }
+        },
+        "price": {
+          "type": "price",
+          "settings": {
+            "show_tax": false
+          }
+        },
+        "custom_liquid_price_per_m2": {
+          "type": "custom_liquid",
+          "name": "Preis pro m² (Custom Liquid)",
+          "settings": {
+            "custom_liquid": "{% assign v = product.selected_or_first_available_variant %}\n{% if v %}\n<div class=\"wpd-price-per-m2\" style=\"margin:6px 0 0; font-size:1.05em;\">\n  <span>Preis pro m²:</span>\n  <strong>{{ v.price | times: 100 | money }}</strong>\n  <span>/ m²</span>\n</div>\n{% endif %}"
+          }
+        },
+        "buy_button": {
+          "type": "buy_button",
+          "disabled": true,
+          "settings": {
+            "button_style": "plain",
+            "show_amount_selection": true,
+            "show_dynamic_buybutton": false,
+            "button_style_dynamic_buybutton": "inv",
+            "preorder": true,
+            "preorder_button_text": "Pre-order",
+            "preorder_label": "<p>The estimated delivery time is 2-4 weeks</p>",
+            "preorder_label_color_palette": "light",
+            "preorder_show_dynamic_buybutton": false,
+            "show_gift_card_recipient": false
+          }
+        },
+        "custom_html_pcCbgC": {
+          "type": "custom_html",
+          "name": "Text Designer (Custom HTML)",
+          "settings": {
+            "custom_html": "Du kannst dieses Design nach deinen individuellen Wünschen mit unserem Konfigurator anpassen:"
+          }
+        },
+        "aa5edfe9-62ab-4d99-bf4e-ccac80ecff3d": {
+          "type": "spacer",
+          "settings": {
+            "height": 20
+          }
+        },
+        "wpd_launcher_XgzmEb": {
+          "type": "wpd_launcher",
+          "settings": {
+            "button_label": "Konfigurator öffnen"
+          }
+        },
+        "spacer_34iApd": {
+          "type": "spacer",
+          "settings": {
+            "height": 30
+          }
+        },
+        "usp_1": {
+          "type": "usp",
+          "name": "Lieferfrist Information",
+          "settings": {
+            "usp": "<p>{{ product.metafields.custom.lieferfrist.value }}</p>"
+          }
+        },
+        "variant_selection": {
+          "type": "variant_selection",
+          "settings": {
+            "selection_type": "buttons",
+            "options": true,
+            "show_variant_images": false,
+            "show_unavailable_variants": true,
+            "show_single_options": true,
+            "enable_selling_plans": true
+          }
+        },
+        "custom_liquid_hwfDNz": {
+          "type": "custom_liquid",
+          "name": "Materialoptionen (Custom Liquid)",
+          "settings": {
+            "custom_liquid": "{% render 'product-material-options', materials_title: 'Materialvarianten dieses Designs:', materials_sort: 'Vlies,Vinyl,Textil,Papier' %}"
+          }
+        },
+        "siblings-grid": {
+          "type": "siblings_grid",
+          "settings": {
+            "title": "Farbvarianten dieses Designs:",
+            "ns": "custom",
+            "key": "designname",
+            "sf_token": "d221750e07f09dd291b2967e960451ab",
+            "initial": 12,
+            "batch": 12,
+            "cols_desktop": 4,
+            "cols_tablet": 3,
+            "cols_mobile": 2,
+            "show_oos": true,
+            "sort_mode": "title",
+            "css": ""
+          }
+        },
+        "spacer_a93MCf": {
+          "type": "spacer",
+          "settings": {
+            "height": 25
+          }
+        },
+        "custom_liquid_XEmXbe": {
+          "type": "custom_liquid",
+          "name": "Produktinformationen (Custom Liquid)",
+          "settings": {
+            "custom_liquid": "<h3>Produktinformationen:</h3>\n{% if product.metafields.custom.bahnenbreite_in_cm or\n      product.metafields.custom.rollenlaenge or\n      product.metafields.custom.rapport or\n      product.metafields.custom.warenbreite or\n      product.metafields.custom.tapeteneigenschaften or\n      product.metafields.custom.kollektion2 or\n      product.metafields.custom.designname %}\n\n  <ul>\n    {% if product.metafields.custom.bahnenbreite_in_cm %}\n      <li><h5>Bahnenbreite: {{ product.metafields.custom.bahnenbreite_in_cm }} cm</h5></li>\n    {% endif %}\n    {% if product.metafields.custom.rollenlaenge %}\n      <li><h5>Rollenlänge: {{ product.metafields.custom.rollenlaenge }} cm</h5></li>\n    {% endif %}\n    {% if product.metafields.custom.rapport %}\n      <li><h5>Rapport: {{ product.metafields.custom.rapport }} cm</h5></li>\n    {% endif %}\n    {% if product.metafields.custom.warenbreite %}\n      <li><h5>Breite des Bildes: {{ product.metafields.custom.warenbreite }} cm</h5></li>\n    {% endif %}\n    {% if product.metafields.custom.kollektion2 %}\n  {% assign kollektion_clean = product.metafields.custom.kollektion2.value | replace: '\"', '' | replace: '[', '' | replace: ']', '' %}\n  <li><h5>Kollektion: {{ kollektion_clean | strip }}</h5></li>\n{% endif %}\n    \n  </ul>\n{% endif %}"
+          }
+        },
+        "custom_liquid_Q9efFc": {
+          "type": "custom_liquid",
+          "name": "Tapeteneigenschaften (Custom Liquid)",
+          "settings": {
+            "custom_liquid": "{% if product.metafields.custom.tapeteneigenschaften %}\n   <h3>Tapeteneigenschaften:</h3>\n<ul>\n      {% assign tapeteneigenschaften_list = product.metafields.custom.tapeteneigenschaften.value | split: ',' %}\n      {% for eigenschaft in tapeteneigenschaften_list %}\n    {% assign eigen_clean = eigenschaft | replace: '\"', '' | replace: '[', '' | replace: ']', '' %}\n\n        <li><h5>{{ eigen_clean | strip }}</h5></li>\n      {% endfor %}\n    {% endif %}"
+          }
+        },
+        "wpd_material_markers": {
+          "type": "custom_liquid",
+          "name": "WPD Material Markers",
+          "settings": {
+            "custom_liquid": "{% if product.metafields.custom.material %}<!-- WPD Material Markers START -->\n<meta name=\"wpd:material\" content=\"{{ product.metafields.custom.material | escape }}\">\n<div id=\"wpd-material-source\" data-product-material=\"{{ product.metafields.custom.material | escape }}\" style=\"display:none\"></div>\n<script>(function(){window.__WPD_MATERIAL__={material:'{{ product.metafields.custom.material | escape }}'};})();</script>\n<!-- WPD Material Markers END -->{% endif %}"
+          }
+        },
+        "spacer_3jJzjE": {
+          "type": "spacer",
+          "disabled": true,
+          "settings": {
+            "height": 100
+          }
+        },
+        "inventory": {
+          "type": "inventory",
+          "disabled": true,
+          "settings": {}
+        },
+        "e9431daf-3b99-40f6-89ff-dab164cda2ff": {
+          "type": "spacer",
+          "disabled": true,
+          "settings": {
+            "height": 15
+          }
+        },
+        "shipping_timer": {
+          "type": "shipping_timer",
+          "disabled": true,
+          "settings": {}
+        },
+        "usp_2": {
+          "type": "usp",
+          "disabled": true,
+          "settings": {
+            "usp": "<p>No <strong>hassle returns</strong></p>"
+          }
+        },
+        "a1c0a3af-5361-4c10-9e96-7a98243527dd": {
+          "type": "content",
+          "disabled": true,
+          "settings": {
+            "enable_tab": true,
+            "collapse": true,
+            "title_size": "h2",
+            "title": "Sustainable design",
+            "icon": "none",
+            "header_image_svg": "",
+            "header_image_width": 25,
+            "text": "",
+            "page": "",
+            "image_width": 465,
+            "liquid": "",
+            "html": "",
+            "show_contact_form": false
+          }
+        },
+        "f0e4648d-718f-4302-b2f5-f71b024a6c46": {
+          "type": "content",
+          "disabled": true,
+          "settings": {
+            "enable_tab": true,
+            "collapse": true,
+            "title_size": "h2",
+            "title": "30 days money back",
+            "icon": "none",
+            "header_image_svg": "",
+            "header_image_width": 25,
+            "text": "",
+            "page": "refund-returns",
+            "image_width": 465,
+            "liquid": "",
+            "html": "",
+            "show_contact_form": true
+          }
+        },
+        "207b40f3-5125-461b-9a5d-99abc79a1a00": {
+          "type": "complementary_products",
+          "disabled": true,
+          "settings": {
+            "enable_tab": true,
+            "collapse": false,
+            "title": "Pairs well with",
+            "icon": "none",
+            "header_image_svg": "",
+            "header_image_width": 25,
+            "layout": "grid",
+            "number_of_items": 3,
+            "enable_quick_buy_desktop": true,
+            "enable_quick_buy_mobile": true,
+            "enable_quick_buy_drawer": true,
+            "enable_quick_buy_qty_selector": true,
+            "enable_color_picker": false,
+            "enable_quick_buy_compact": true,
+            "products_show_image": true,
+            "products_show_labels": false,
+            "products_show_vendor": false,
+            "products_show_title": true,
+            "products_show_rating": false,
+            "products_show_price": true,
+            "products_show_stock": false
+          }
+        },
+        "cd4e4c0f-ff61-4252-929c-3c6552efebd3": {
+          "type": "trustbadge",
+          "disabled": true,
+          "settings": {}
+        }
+      },
+      "block_order": [
+        "c7259cb9-7235-4028-b6df-3a68077fed80",
+        "short_description",
+        "price",
+        "custom_liquid_price_per_m2",
+        "buy_button",
+        "custom_html_pcCbgC",
+        "aa5edfe9-62ab-4d99-bf4e-ccac80ecff3d",
+        "wpd_launcher_XgzmEb",
+        "spacer_34iApd",
+        "usp_1",
+        "variant_selection",
+        "custom_liquid_hwfDNz",
+        "siblings-grid",
+        "spacer_a93MCf",
+        "custom_liquid_XEmXbe",
+        "custom_liquid_Q9efFc",
+        "wpd_material_markers",
+        "spacer_3jJzjE",
+        "inventory",
+        "e9431daf-3b99-40f6-89ff-dab164cda2ff",
+        "shipping_timer",
+        "usp_2",
+        "a1c0a3af-5361-4c10-9e96-7a98243527dd",
+        "f0e4648d-718f-4302-b2f5-f71b024a6c46",
+        "207b40f3-5125-461b-9a5d-99abc79a1a00",
+        "cd4e4c0f-ff61-4252-929c-3c6552efebd3"
+      ],
+      "settings": {
+        "show_thumbs_desktop": true,
+        "show_thumbs_mobile": false,
+        "images_layout": "aside",
+        "show_product_description": true,
+        "description_title_size": "h2",
+        "product_description_enable_read_more": false,
+        "pros_cons_title_size": "h2",
+        "pros": "",
+        "cons": "",
+        "specs_title_size": "h2",
+        "specifications": "",
+        "product_description_mobile_collapse": false,
+        "mobile_tabs_title_size": "h4"
+      }
+    },
+    "1654858435570866da": {
+      "type": "section-faq",
+      "blocks": {
+        "1654858435278bc343-0": {
+          "type": "text",
+          "settings": {
+            "faq_question": "When will my order be delivered?",
+            "icon": "none",
+            "header_image_svg": "",
+            "header_image_width": 25,
+            "faq_answer": "<p>We ship worldwide. Your order will be packaged really carefully and delivered wherever you want. Delivery takes between 2-4 business days. You will receive an email after ordering with more information about the delivery.</p>",
+            "page": "",
+            "image_width": 465,
+            "liquid": "",
+            "html": "",
+            "show_contact_form": false
+          }
+        },
+        "1654858435278bc343-1": {
+          "type": "text",
+          "settings": {
+            "faq_question": "Can I Return my product?",
+            "icon": "none",
+            "header_image_svg": "",
+            "header_image_width": 25,
+            "faq_answer": "<p>Orders can be returned or exchanged within 30 days of receiving the parcel, providing they are in original resalable condition.</p>",
+            "page": "",
+            "image_width": 465,
+            "liquid": "",
+            "html": "",
+            "show_contact_form": false
+          }
+        },
+        "1654858435278bc343-2": {
+          "type": "text",
+          "settings": {
+            "faq_question": "What can I do if my item (or part of it) is damaged?",
+            "icon": "none",
+            "header_image_svg": "",
+            "header_image_width": 25,
+            "faq_answer": "<p>We work hard to deliver your items without damage. Orders can be returned or exchanged within 30 days of receiving the parcel, providing they are in original resalable condition.</p>",
+            "page": "",
+            "image_width": 465,
+            "liquid": "",
+            "html": "",
+            "show_contact_form": false
+          }
+        }
+      },
+      "block_order": [
+        "1654858435278bc343-0",
+        "1654858435278bc343-1",
+        "1654858435278bc343-2"
+      ],
+      "disabled": true,
+      "settings": {
+        "alignment": "left",
+        "compact": false,
+        "title": "<h2>Frequently asked questions</h2>",
+        "title_underline_style": "none",
+        "spacing_desktop": 75,
+        "spacing_mobile": 30,
+        "fix_zindex": 0
+      }
+    },
+    "adcf155f-c66b-4a79-9e9a-7a225a1727bd": {
+      "type": "section-image-hotspots",
+      "blocks": {
+        "template--15845690343481__adcf155f-c66b-4a79-9e9a-7a225a1727bd-16819924872066b707-0": {
+          "type": "hotspot",
+          "settings": {
+            "product": "",
+            "text_position": "text-start",
+            "title": "Image hotspot",
+            "text": "<p>Highlight a new collection and share details about products related to this image</p>",
+            "position_left": 70,
+            "position_top": 20,
+            "position_left_mobile": 70,
+            "position_top_mobile": 20
+          }
+        },
+        "template--15845690343481__adcf155f-c66b-4a79-9e9a-7a225a1727bd-16819924872066b707-1": {
+          "type": "hotspot",
+          "settings": {
+            "product": "",
+            "text_position": "text-start",
+            "title": "Image hotspot",
+            "text": "<p>Highlight a new collection and share details about products related to this image</p>",
+            "position_left": 36,
+            "position_top": 73,
+            "position_left_mobile": 30,
+            "position_top_mobile": 50
+          }
+        },
+        "template--15845690343481__adcf155f-c66b-4a79-9e9a-7a225a1727bd-16819924872066b707-2": {
+          "type": "hotspot",
+          "settings": {
+            "product": "",
+            "text_position": "text-start",
+            "title": "Image hotspot",
+            "text": "<p>Highlight a new collection and share details about products related to this image</p>",
+            "position_left": 71,
+            "position_top": 70,
+            "position_left_mobile": 50,
+            "position_top_mobile": 70
+          }
+        }
+      },
+      "block_order": [
+        "template--15845690343481__adcf155f-c66b-4a79-9e9a-7a225a1727bd-16819924872066b707-0",
+        "template--15845690343481__adcf155f-c66b-4a79-9e9a-7a225a1727bd-16819924872066b707-1",
+        "template--15845690343481__adcf155f-c66b-4a79-9e9a-7a225a1727bd-16819924872066b707-2"
+      ],
+      "disabled": true,
+      "settings": {
+        "overlay_opacity": 0,
+        "color_palette": "scheme-6",
+        "hotspot_height": 33,
+        "hotspot_color_palette": "tertiary",
+        "layout": "right",
+        "height": "1/1",
+        "width": "wide",
+        "enable_custom_height": false,
+        "custom_height": 300,
+        "text_position": "align-start text-start",
+        "title": "<h1>Complete your interior with these items</h1>",
+        "title_underline_style": "none",
+        "text": "<p>This look is for all the design lovers!</p>",
+        "show_link": true,
+        "link_text": "Discover all",
+        "link_url": "/",
+        "button_style": "secondary plain",
+        "height_mobile": "m",
+        "spacing_desktop": 75,
+        "spacing_mobile": 30,
+        "fix_zindex": 0
+      }
+    },
+    "recommendations": {
+      "type": "product-recommendations",
+      "settings": {
+        "recommended_products_qty": 4,
+        "number_of_items": 4,
+        "text_alignment": "start",
+        "title": "<h2>Das könnte dir auch gefallen</h2>",
+        "title_underline_style": "none",
+        "enable_quick_buy_desktop": false,
+        "enable_quick_buy_mobile": false,
+        "enable_quick_buy_drawer": false,
+        "enable_quick_buy_qty_selector": true,
+        "enable_color_picker": false,
+        "enable_quick_buy_compact": false,
+        "spacing_desktop": 85,
+        "spacing_mobile": 50,
+        "fix_zindex": 4,
+        "mobile_collapse": false
+      }
+    },
+    "1654858578e5e9d4ed": {
+      "type": "section-gallery",
+      "blocks": {
+        "1654858578eeafaf8a-0": {
+          "type": "image",
+          "settings": {
+            "overlay_opacity": 5,
+            "color_palette": "scheme-5",
+            "text_position": "center",
+            "title": "<h2>Scandinavian furniture</h2>",
+            "title_underline_style": "none",
+            "text": "<p>Desks, beds, tables and dining room chairs</p>",
+            "show_link": true,
+            "link_text": "Discover now",
+            "link_url": "/",
+            "button_style": "primary plain",
+            "show_overlay_link": true,
+            "overlay_url": ""
+          }
+        },
+        "1654858578eeafaf8a-1": {
+          "type": "image",
+          "settings": {
+            "overlay_opacity": 0,
+            "color_palette": "scheme-4",
+            "text_position": "center",
+            "title": "<h2>Home decor</h2>",
+            "title_underline_style": "none",
+            "text": "<p>The finishing touch for your interior</p>",
+            "show_link": true,
+            "link_text": "Discover now",
+            "link_url": "/",
+            "button_style": "primary plain",
+            "show_overlay_link": true,
+            "overlay_url": ""
+          }
+        }
+      },
+      "block_order": [
+        "1654858578eeafaf8a-0",
+        "1654858578eeafaf8a-1"
+      ],
+      "disabled": true,
+      "settings": {
+        "items_layout": "playful-grid",
+        "items_width": 2,
+        "height": "16/9",
+        "enable_custom_height": false,
+        "custom_height": 300,
+        "width": "boxed",
+        "space_between": 6,
+        "image_zoom": true,
+        "image_move": false,
+        "show_content_on_hover": false,
+        "show_content_below": false,
+        "content_on_hover_color_palette": "dark",
+        "layout_mobile": "rows",
+        "mobile_height": "16/9",
+        "spacing_desktop": 75,
+        "spacing_mobile": 30,
+        "fix_zindex": 0
+      }
+    },
+    "recently-viewed": {
+      "type": "section-recently-viewed-products",
+      "settings": {
+        "number_of_items": 4,
+        "text_alignment": "start",
+        "title": "<h2>Zuletzt angeschaute Produkte</h2>",
+        "title_underline_style": "none",
+        "enable_quick_buy_desktop": false,
+        "enable_quick_buy_mobile": false,
+        "enable_quick_buy_drawer": false,
+        "enable_quick_buy_qty_selector": true,
+        "enable_color_picker": false,
+        "enable_quick_buy_compact": false,
+        "spacing_desktop": 50,
+        "spacing_mobile": 30,
+        "fix_zindex": 0
+      }
+    }
+  },
+  "order": [
+    "breadcrumbs",
+    "main-product",
+    "1654858435570866da",
+    "adcf155f-c66b-4a79-9e9a-7a225a1727bd",
+    "recommendations",
+    "1654858578e5e9d4ed",
+    "recently-viewed"
+  ]
+}

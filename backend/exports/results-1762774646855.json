@@ -1,0 +1,33 @@
+{
+  "generatedAt": 1762774646855,
+  "count": 3,
+  "results": [
+    {
+      "handle": "",
+      "product_id": null,
+      "sku": "",
+      "url": "https://coordonne.com/wp-content/uploads/2023/02/A00646_03.jpg",
+      "ok": false,
+      "error": "missing_identifier",
+      "wd_picture": false
+    },
+    {
+      "handle": "",
+      "product_id": null,
+      "sku": "",
+      "url": "https://coordonne.com/wp-content/uploads/2023/01/leku-cemento-wallpapersmurals-coordonne-1.jpg",
+      "ok": false,
+      "error": "missing_identifier",
+      "wd_picture": false
+    },
+    {
+      "handle": "",
+      "product_id": null,
+      "sku": "",
+      "url": "https://coordonne.com/wp-content/uploads/2023/01/leku-cemento-wallpapersmurals-coordonne.jpg",
+      "ok": false,
+      "error": "missing_identifier",
+      "wd_picture": false
+    }
+  ]
+}

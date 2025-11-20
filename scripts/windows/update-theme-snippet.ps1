@@ -9,10 +9,12 @@ if (-not (Test-Path $ThemeDir)) { throw "Theme directory not found: $ThemeDir" }
 $snippet = Join-Path (Join-Path $ThemeDir 'snippets') $SnippetName
 if (-not (Test-Path $snippet)) { throw "Snippet not found: $snippet" }
 
-# Backup
-$backup = "$snippet.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+# Backup (outside of theme repo to avoid Shopify Git validation)
+$backupRoot = Join-Path $env:TEMP 'wpd-theme-backups'
+if (-not (Test-Path $backupRoot)) { New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null }
+$backup = Join-Path $backupRoot ("$($SnippetName).bak-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 Copy-Item -Path $snippet -Destination $backup -Force
-Write-Host ("Backup created: " + $backup) -ForegroundColor Yellow
+Write-Host ("Backup created (TEMP): " + $backup) -ForegroundColor Yellow
 
 $txt = Get-Content -Raw -Path $snippet -Encoding UTF8
 $needsForce = ($txt -notmatch '__WPD_LAUNCHER_FORCE__')

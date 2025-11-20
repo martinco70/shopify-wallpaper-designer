@@ -1,0 +1,30 @@
+{%- comment -%}
+Renders cart line item properties with a clickable link for the Konfiguration property.
+Include this snippet in cart and order templates where line item properties are shown.
+{%- endcomment -%}
+
+{%- assign props = item.properties -%}
+{%- if props and props.size > 0 -%}
+  <dl class="wpd-properties">
+    {%- for p in props -%}
+      {%- assign key = p.first -%}
+      {%- assign val = p.last -%}
+      {%- if val == blank -%}{% continue %}{%- endif -%}
+      <div class="wpd-property">
+        <dt class="wpd-property__name">{{ key | escape }}:</dt>
+        <dd class="wpd-property__value">
+          {%- if key downcase == 'konfiguration' -%}
+            {%- assign url = val | strip -%}
+            {%- if url contains '://' -%}
+              <a href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>
+            {%- else -%}
+              <a href="{{ url | prepend: 'https://' }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>
+            {%- endif -%}
+          {%- else -%}
+            {{ val }}
+          {%- endif -%}
+        </dd>
+      </div>
+    {%- endfor -%}
+  </dl>
+{%- endif -%}

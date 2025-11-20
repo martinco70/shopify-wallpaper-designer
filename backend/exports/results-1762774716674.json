@@ -1,0 +1,54 @@
+{
+  "generatedAt": 1762774716674,
+  "count": 3,
+  "results": [
+    {
+      "product_id": null,
+      "sku": null,
+      "handle": "coordonne_lur_leku_a00646",
+      "url": "https://coordonne.com/wp-content/uploads/2023/02/A00646_03.jpg",
+      "position": 3,
+      "wd_picture": false,
+      "ok": true,
+      "image_id": 67956732559707,
+      "src": "https://cdn.shopify.com/s/files/1/0947/6436/8219/files/4731dfb57175a8717b61eda7d3bdd67c.jpg?v=1762774701",
+      "resolved_via": "handle",
+      "wd_picture_set": true,
+      "wd_picture_error": null,
+      "wd_picture_ref_id": "gid://shopify/MediaImage/67956732559707",
+      "wd_picture_ref_kind": "MediaImage"
+    },
+    {
+      "product_id": null,
+      "sku": null,
+      "handle": "coordonne_lur_leku_a00646",
+      "url": "https://coordonne.com/wp-content/uploads/2023/01/leku-cemento-wallpapersmurals-coordonne-1.jpg",
+      "position": 1,
+      "wd_picture": false,
+      "ok": true,
+      "image_id": 67956733215067,
+      "src": "https://cdn.shopify.com/s/files/1/0947/6436/8219/files/14c20f2b08f77a3cba9f49633711bf1b.jpg?v=1762774706",
+      "resolved_via": "handle",
+      "wd_picture_set": true,
+      "wd_picture_error": null,
+      "wd_picture_ref_id": "gid://shopify/MediaImage/67956733215067",
+      "wd_picture_ref_kind": "MediaImage"
+    },
+    {
+      "product_id": null,
+      "sku": null,
+      "handle": "coordonne_lur_leku_a00646",
+      "url": "https://coordonne.com/wp-content/uploads/2023/01/leku-cemento-wallpapersmurals-coordonne.jpg",
+      "position": 2,
+      "wd_picture": false,
+      "ok": true,
+      "image_id": 67956734263643,
+      "src": "https://cdn.shopify.com/s/files/1/0947/6436/8219/files/6644486724c1e1d8223361d824735807.jpg?v=1762774715",
+      "resolved_via": "handle",
+      "wd_picture_set": true,
+      "wd_picture_error": null,
+      "wd_picture_ref_id": "gid://shopify/MediaImage/67956734263643",
+      "wd_picture_ref_kind": "MediaImage"
+    }
+  ]
+}

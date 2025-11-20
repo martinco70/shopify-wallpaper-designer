@@ -1,0 +1,30 @@
+{%- comment -%}
+Snippet: product-material-options
+Material-Buttons ohne Bilder, max. 8, Sortierung bevorzugt: Vlies,Vinyl,Textil,Papier.
+Hinweis: Initialisierung erfolgt über das Asset assets/wpd-materials.js (kein Inline-Script hier).
+{%- endcomment -%}
+
+{%- assign current_material = product.metafields.custom.material | default: '' -%}
+{%- assign group_code = '' -%}
+{%- if product.metafields.custom and product.metafields.custom.artikelgruppierung -%}
+  {%- assign _grp = product.metafields.custom.artikelgruppierung -%}
+  {%- assign group_code = _grp.value | default: _grp -%}
+{%- endif -%}
+{%- assign _materials_title = materials_title | default: 'Weitere Materialvarianten dieses Designs:' -%}
+{%- assign _materials_sort = materials_sort | default: 'Vlies,Vinyl,Textil,Papier' -%}
+{%- assign _min_items = min_items | default: 1 -%}
+
+<div class="wpd-materials"
+     data-title="{{ product.title | escape }}"
+     data-vendor="{{ product.vendor | escape }}"
+     data-current="{{ current_material | escape }}"
+     data-shop="{{ shop.permanent_domain }}"
+     data-group="{{ group_code | escape }}"
+  data-proxy-url="https://app.wirzapp.ch/api/materials"
+     data-sort-pref="{{ _materials_sort | escape }}"
+   data-min-items="{{ _min_items }}"
+     >
+  <h3 class="wpd-materials__title product-siblings__heading">{{ _materials_title }}</h3>
+  <div class="wpd-materials__list" role="radiogroup" aria-label="Materialvarianten"></div>
+</div>
+<script src="{{ 'wpd-materials.js' | asset_url }}&cb=2025-11-01-01" defer></script>

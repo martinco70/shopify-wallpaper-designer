@@ -1,0 +1,91 @@
+{%- comment -%}
+Reusable unit price snippet
+Usage:
+  {% render 'wpd-price-per-unit', product: product, variant: product.selected_or_first_available_variant %}
+Behavior:
+  - For products with template_suffix == 'tapetendesigner': show price * 100 and unit "m²"
+  - For all other products: show price as-is and unit from metafield custom.einheit (or fallback "Einheit")
+  - If variants have differing prices, display the lowest price prefixed with "ab ".
+  - Works on PDP and collection cards. Variant is optional; will fallback to selected or product.price
+{%- endcomment -%}
+
+{%- assign p = blank -%}
+{%- assign v = variant -%}
+{%- assign prod = product | default: nil -%}
+
+{%- if prod == nil and v and v.product -%}
+  {%- assign prod = v.product -%}
+{%- endif -%}
+
+{%- if v == nil and prod and prod.selected_or_first_available_variant -%}
+  {%- assign v = prod.selected_or_first_available_variant -%}
+{%- endif -%}
+
+{%- if v and v.price -%}
+  {%- assign p = v.price -%}
+{%- elsif prod and prod.price -%}
+  {%- assign p = prod.price -%}
+{%- endif -%}
+
+{%- comment -%} Detect lowest variant price and whether prices differ {%- endcomment -%}
+{%- assign lowest_price = p -%}
+{%- assign first_price = nil -%}
+{%- assign prices_differ = false -%}
+{%- if prod and prod.variants and prod.variants.size > 0 -%}
+  {%- for vv in prod.variants -%}
+    {%- assign vv_price = vv.price -%}
+    {%- if first_price == nil -%}
+      {%- assign first_price = vv_price -%}
+    {%- endif -%}
+    {%- if vv_price != first_price -%}
+      {%- assign prices_differ = true -%}
+    {%- endif -%}
+    {%- if lowest_price == blank or vv_price < lowest_price -%}
+      {%- assign lowest_price = vv_price -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- if prod and prod.template_suffix -%}
+  {%- assign tpl = prod.template_suffix | strip | downcase -%}
+{%- else -%}
+  {%- assign tpl = '' -%}
+{%- endif -%}
+
+{%- assign is_designer = false -%}
+{%- if tpl == 'tapetendesigner' -%}
+  {%- assign is_designer = true -%}
+{%- endif -%}
+
+{%- comment -%} Determine unit {%- endcomment -%}
+{%- assign unit = '' -%}
+{%- if is_designer -%}
+  {%- assign unit = 'm²' -%}
+{%- elsif prod and prod.metafields and prod.metafields.custom and prod.metafields.custom.einheit -%}
+  {%- assign mf = prod.metafields.custom.einheit -%}
+  {%- if mf.value -%}
+    {%- assign unit = mf.value -%}
+  {%- else -%}
+    {%- assign unit = mf -%}
+  {%- endif -%}
+{%- endif -%}
+{%- assign unit = unit | default: 'Einheit' -%}
+
+{%- if p != blank -%}
+  {%- assign base_price = p -%}
+  {%- if prices_differ and lowest_price != blank -%}
+    {%- assign base_price = lowest_price -%}
+  {%- endif -%}
+
+  {%- if is_designer -%}
+    {%- assign display_price = base_price | times: 100 -%}
+  {%- else -%}
+    {%- assign display_price = base_price -%}
+  {%- endif -%}
+
+  <span class="wpd-unit-price">
+    {%- if prices_differ -%}<span class="wpd-unit-price__prefix">ab&nbsp;</span>{%- endif -%}
+    <span class="wpd-unit-price__value">{{ display_price | money }}</span>
+    <span class="wpd-unit-price__unit">/{{ unit }}</span>
+  </span>
+{%- endif -%}

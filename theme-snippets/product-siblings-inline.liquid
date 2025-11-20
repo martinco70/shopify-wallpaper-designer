@@ -1,0 +1,60 @@
+{%- comment -%}
+Snippet: product-siblings-inline
+Purpose: Automatisch unterhalb der Varianten rendern, ohne Block/Section.
+Config: Liest group_code aus product.metafields.custom.designname (einzeiliger Text).
+  Optional: Übergabe eines Storefront Tokens via param token.
+Fallback: Assets/design-groups.json + /products/{handle}.js, falls kein Token.
+{%- endcomment -%}
+
+{%- assign cfg_title = block.settings.title | default: '' -%}
+{%- assign cfg_ns = block.settings.ns | default: 'custom' -%}
+{%- assign cfg_key = block.settings.key | default: 'designname' -%}
+{%- assign cfg_initial = block.settings.initial | default: 12 -%}
+{%- assign cfg_batch = block.settings.batch | default: 12 -%}
+{%- assign cfg_cols_d = block.settings.cols_desktop | default: 4 -%}
+{%- assign cfg_cols_t = block.settings.cols_tablet | default: 3 -%}
+{%- assign cfg_cols_m = block.settings.cols_mobile | default: 2 -%}
+{%- assign cfg_show_oos = block.settings.show_oos | default: true -%}
+{%- assign cfg_sort = block.settings.sort_mode | default: 'title' -%}
+{%- assign ns = cfg_ns -%}
+{%- assign key = cfg_key -%}
+{%- assign group_code = '' -%}
+{%- if product.metafields[ns] and product.metafields[ns][key] -%}
+  {%- assign group_raw = product.metafields[ns][key] -%}
+  {%- assign group_code = group_raw.value | default: group_raw -%}
+{%- endif -%}
+
+{%- if group_code == blank -%}
+  <!-- siblings-inline:metafield_missing ({{ ns }}.{{ key }}) -->
+{%- endif -%}
+
+{%- assign sf_token = token | default: block.settings.sf_token | default: settings.storefront_public_token -%}
+  <section class="product-siblings" id="product-siblings-inline-{{ block.id | default: section.id | default: product.id }}"{% if block %} {{ block.shopify_attributes }}{% endif %}
+    data-build="siblings-inline-2025-10-23-01"
+    data-siblings="true"
+    data-initial-count="{{ cfg_initial }}"
+    data-batch-size="{{ cfg_batch }}"
+    data-columns-desktop="{{ cfg_cols_d }}"
+    data-columns-tablet="{{ cfg_cols_t }}"
+    data-columns-mobile="{{ cfg_cols_m }}"
+    data-show-oos-badge="{{ cfg_show_oos }}"
+    data-sort-mode="{{ cfg_sort }}"
+  data-group-code="{{ group_code | handleize | replace: '_', '-' }}"
+  data-group-raw="{{ group_code | escape }}"
+  data-product-vendor="{{ product.vendor | escape }}"
+  data-source="sf-products"
+    data-shop-domain="{{ shop.permanent_domain }}"
+  data-proxy-url="https://app.wirzapp.ch/api/siblings"
+    {%- if sf_token and sf_token != blank -%} data-sf-token="{{ sf_token | escape }}"{%- endif -%}
+    data-groups-asset="{{ 'design-groups.json' | asset_url }}"
+    {%- if group_code == blank -%} data-empty="true" hidden{%- endif -%}
+  >
+  {%- if cfg_title != blank -%}
+  <h3 class="product-siblings__heading">{{ cfg_title | escape }}</h3>
+  {%- endif -%}
+    <div class="product-siblings__grid" role="list"></div>
+  <div class="product-siblings__status" role="status" hidden style="display:none!important"></div>
+  <div class="product-siblings__actions"><button type="button" class="product-siblings__load" hidden>Mehr laden</button></div>
+  </section>
+  <script src="{{ 'wpd-siblings-inline.js' | asset_url }}" defer></script>
+ 

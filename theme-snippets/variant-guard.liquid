@@ -1,0 +1,264 @@
+{%- comment -%}
+Snippet: variant-guard.liquid
+Zweck:
+- Hierarchisches Filtern der Variantenwerte auf Produktseiten, ohne die Theme-Logik zu ersetzen.
+- Blendet nur nicht-existierende Kombinationen aus. Out-of-Stock bleibt immer sichtbar (weder versteckt noch speziell markiert).
+
+Funktionsweise:
+- Gibt einen kompakten JSON-Blob mit Optionsreihenfolge und Varianten (nur Optionen/Existenz) aus.
+- JS-Controller liest diesen Blob und filtert je nach aktueller Teil-Auswahl.
+- Unterstützt Dropdowns (select) und Button-Listen (Radio-Gruppen). Combined Listings werden ignoriert (bail-out).
+
+Hinweise:
+- Die Integration erfolgt idealerweise als eigener Block (type: "variant_guard") direkt unterhalb des Blocks "variant_selection".
+- Keine Abhängigkeit zu WPD/Launcher; unabhängig vom Designer nutzbar.
+{%- endcomment -%}
+
+{%- assign is_combined_listing = false -%}
+{%- if product.options_with_values.first.values.first.product_url -%}
+  {%- assign is_combined_listing = true -%}
+{%- endif -%}
+
+<script type="application/json" id="variant-guard-data-{{ product.id }}">
+{
+  "productId": {{ product.id }},
+  "options": {{ product.options | json }},
+  "combinedListing": {{ is_combined_listing | json }},
+  "variants": [
+    {%- for v in product.variants -%}
+      {"id": {{ v.id }}, "available": {{ v.available | json }}, "options": {{ v.options | json }} }{%- unless forloop.last -%},{%- endunless -%}
+    {%- endfor -%}
+  ]
+}
+</script>
+
+<script>
+(function(){
+  try{
+    var scope = document.querySelector('article#main-product') || document;
+    var dataEl = document.getElementById('variant-guard-data-{{ product.id }}');
+    if(!dataEl) return;
+    var data = {};
+    try{ data = JSON.parse(dataEl.textContent || dataEl.innerText || '{}'); }catch(e){ return; }
+    if (data.combinedListing) return; // Bei Combined Listings nicht eingreifen
+
+    var options = data.options || [];
+    var variants = data.variants || [];
+    if (!options.length || !variants.length) return;
+
+    // Defaults (können bei Bedarf später über Datenattribute o.Ä. konfiguriert werden)
+    var cfg = { showHints: true, autoCorrect: true };
+
+    function getOptionControls(){
+      // Ziel: Controls anhand von name="options[...]" identifizieren und korrektem Optionsindex zuordnen.
+      var ctrlsByIndex = new Array(options.length).fill(null);
+
+      function nameToIndex(name){
+        if (!name) return -1;
+        var m = String(name).match(/^options\[(.+?)\]/i); var inner = m ? m[1] : '';
+        if (!inner) return -1;
+        // OptionN → in Index übersetzen (Option1 => 0)
+        var mNum = inner.match(/^Option(\d+)$/i);
+        if (mNum) { var n = parseInt(mNum[1],10); if (!isNaN(n) && n>=1 && n<=options.length) return n-1; }
+        // Sonst nach Name matchen (case-insensitive)
+        var lower = inner.toLowerCase();
+        for (var i=0;i<options.length;i++){ if (String(options[i]).toLowerCase() === lower) return i; }
+        return -1;
+      }
+
+      // 1) Selects einsammeln
+      var selects = scope.querySelectorAll('select[name^="options["]');
+      selects.forEach(function(sel){
+        var idx = nameToIndex(sel.name);
+        if (idx>=0 && !ctrlsByIndex[idx]) ctrlsByIndex[idx] = { index: idx, type: 'select', select: sel };
+      });
+
+      // 2) Radio-Gruppen einsammeln (gruppiert per Name)
+      var radios = scope.querySelectorAll('input[type="radio"][name^="options["]');
+      var groups = {};
+      radios.forEach(function(r){ var nm = r.name; (groups[nm]||(groups[nm]=[])).push(r); });
+      Object.keys(groups).forEach(function(nm){
+        var idx = nameToIndex(nm);
+        var rads = groups[nm];
+        if (idx>=0 && !ctrlsByIndex[idx]){
+          // Finde einen geeigneten Gruppen-Container zum Ein-/Ausblenden
+          // Bevorzugt ein listenbasiertes El., sonst Label, sonst nächstgelegener Block (.product-form__input etc.)
+          var container = null;
+          for (var i=0;i<rads.length && !container;i++){
+            var el=rads[i];
+            container = el.closest('li, label, .swatch, .product-form__input, fieldset, .variant-option');
+          }
+          ctrlsByIndex[idx] = { index: idx, type: 'buttons', group: container || scope, radios: rads };
+        }
+      });
+
+      // 3) Fallback: Leere Slots mit DOM-Reihenfolge füllen
+      for (var i=0;i<ctrlsByIndex.length;i++){
+        if (!ctrlsByIndex[i]){
+          // Versuche anhand der Reihenfolge: i-tes Select, dann i-te Radio-Gruppe
+          var sel = selects && selects[i] ? selects[i] : null;
+          if (sel){ ctrlsByIndex[i] = { index:i, type:'select', select: sel }; continue; }
+          var groupNames = Object.keys(groups);
+          if (groupNames[i]){
+            var rads2 = groups[groupNames[i]];
+            var cont = null; for (var k=0;k<rads2.length && !cont;k++){ cont = rads2[k].closest('li, label, .swatch, .product-form__input, fieldset, .variant-option'); }
+            ctrlsByIndex[i] = { index:i, type:'buttons', group: cont || scope, radios: rads2 };
+          } else {
+            ctrlsByIndex[i] = { index:i, type:'none' };
+          }
+        }
+      }
+      return ctrlsByIndex;
+    }
+
+    function currentSelections(ctrls){
+      var sel = new Array(options.length).fill(null);
+      for (var i=0;i<ctrls.length;i++){
+        var c = ctrls[i];
+        if (c.type==='select' && c.select){
+          var val = c.select.value; if (val!=null && String(val).trim()!=='') sel[i]=String(val);
+        } else if (c.type==='buttons' && c.radios){
+          for (var j=0;j<c.radios.length;j++){ var r=c.radios[j]; if (r && r.checked){ sel[i]=String(r.value); break; } }
+        }
+      }
+      return sel;
+    }
+
+    function allowedSetAt(index, selections){
+      // Wenn eine vorherige Auswahl fehlt ⇒ noch nicht filtern
+      for (var p=0;p<index;p++){ if (selections[p]==null) return null; }
+      var allowed = Object.create(null);
+      for (var k=0;k<variants.length;k++){
+        var v = variants[k]; var ok = true;
+        for (var p=0;p<index;p++){ if (v.options[p] !== selections[p]) { ok=false; break; } }
+        if (!ok) continue;
+        var val = v.options[index]; if (val!=null) allowed[val]=true; // Availability ignorieren ⇒ Out-of-Stock bleibt sichtbar
+      }
+      return allowed;
+    }
+
+    function setHidden(el, hide){
+      if (!el) return;
+      var tag = (el.tagName || '').toUpperCase();
+      if (tag === 'OPTION') {
+        // Für <option> zuverlässig: hidden-Property setzen
+        try { el.hidden = !!hide; } catch(_) {}
+        if (hide){ el.setAttribute && el.setAttribute('aria-hidden','true'); }
+        else { el.removeAttribute && el.removeAttribute('aria-hidden'); }
+      } else {
+        if (hide){ el.classList && el.classList.add('vg-hidden'); el.setAttribute && el.setAttribute('aria-hidden','true'); }
+        else { el.classList && el.classList.remove('vg-hidden'); el.removeAttribute && el.removeAttribute('aria-hidden'); }
+      }
+    }
+
+    function isMuster(txt){ try{ return String(txt||'').toLowerCase().indexOf('muster') !== -1; }catch(_){ return false; } }
+
+    function applyFilter(){
+      var ctrls = getOptionControls();
+      var selections = currentSelections(ctrls);
+      var changed = false;
+
+      for (var i=0;i<ctrls.length;i++){
+        var ctrl = ctrls[i];
+        var allowed = allowedSetAt(i, selections); // null ⇒ keine Filterung
+
+        if (ctrl.type==='select' && ctrl.select){
+          var opts = ctrl.select.options || [];
+          for (var j=0;j<opts.length;j++){
+            var opt = opts[j]; if (!opt) continue; var val = String(opt.value||'').trim();
+            if (allowed==null){
+              if (cfg.showHints && i>0){ var prevName=options[i-1]||'vorige Option'; opt.title='Bitte zuerst „'+prevName+'“ wählen'; }
+              if (opt.dataset && opt.dataset.vgHide==='1'){ setHidden(opt,false); delete opt.dataset.vgHide; }
+              continue;
+            }
+            var hide = val==='' ? false : !allowed[val];
+            // Ausschlussregel: Werte mit "Muster" immer ausblenden
+            if (!hide){
+              var labelText = (opt.textContent||opt.label||opt.innerText||'');
+              if (isMuster(val) || isMuster(labelText)) hide = true;
+            }
+            if (hide){
+              setHidden(opt,true); if (opt.dataset) opt.dataset.vgHide='1';
+              if (cfg.showHints){ var hint='Nicht verfügbar für Auswahl: '+ selections.slice(0,i).filter(Boolean).join(' / '); opt.title=hint; }
+            } else {
+              if (opt.dataset && opt.dataset.vgHide==='1'){ setHidden(opt,false); delete opt.dataset.vgHide; }
+              opt.removeAttribute && opt.removeAttribute('title');
+            }
+          }
+          // Auto-Korrektur bei ungültiger Auswahl
+          if (allowed && selections[i]!=null && allowed[selections[i]]!==true && cfg.autoCorrect){
+            for (var j2=0;j2<opts.length;j2++){
+              var o2=opts[j2]; if (!o2) continue; var v2=String(o2.value||'').trim();
+              var isHidden = o2.classList && o2.classList.contains('vg-hidden');
+              if (!isHidden && allowed[v2]){ ctrl.select.value=v2; ctrl.select.dispatchEvent(new Event('change',{bubbles:true})); selections[i]=v2; changed=true; break; }
+            }
+          }
+
+        } else if (ctrl.type==='buttons' && ctrl.radios){
+          // Sammle pro Radio dessen anzuzeigenden Container (li/label/etc.)
+          var items = [];
+          for (var m=0;m<ctrl.radios.length;m++){
+            var input = ctrl.radios[m];
+            var holder = input.closest('li, label, .swatch, .product-form__input-item, .product-form__input .swatch, .swatch__item, .variant-option, .product-form__input') || input.parentElement;
+            items.push({ holder: holder, input: input });
+          }
+          for (var x=0;x<items.length;x++){
+            var it = items[x]; var input = it.input; var holder = it.holder;
+            var val = String(input.value||'').trim();
+            if (allowed==null){
+              if (cfg.showHints && i>0 && holder){ var prevName2=options[i-1]||'vorige Option'; holder.title='Bitte zuerst „'+prevName2+'“ wählen'; }
+              if (holder && holder.dataset && holder.dataset.vgHide==='1'){ setHidden(holder,false); delete holder.dataset.vgHide; }
+              continue;
+            }
+            var hide = val==='' ? false : !allowed[val];
+            // Ausschlussregel: Werte mit "Muster" immer ausblenden
+            if (!hide){
+              var labelTxt = holder && holder.textContent ? holder.textContent : '';
+              if (isMuster(val) || isMuster(labelTxt)) hide = true;
+            }
+            if (hide){
+              if (holder){ setHidden(holder,true); if (holder.dataset) holder.dataset.vgHide='1'; }
+              if (cfg.showHints && holder){ var hint2='Nicht verfügbar für Auswahl: '+ selections.slice(0,i).filter(Boolean).join(' / '); holder.title=hint2; }
+              if (input.checked && cfg.autoCorrect){ input.checked=false; }
+            } else {
+              if (holder && holder.dataset && holder.dataset.vgHide==='1'){ setHidden(holder,false); delete holder.dataset.vgHide; }
+              if (holder) holder.removeAttribute && holder.removeAttribute('title');
+            }
+          }
+          // AutoCorrect: erste erlaubte Option wählen, falls nötig
+          var selVal = selections[i];
+          if (allowed && (selVal==null || !allowed[selVal]) && cfg.autoCorrect){
+            var first=null;
+            for (var m2=0;m2<items.length;m2++){
+              var ii=items[m2]; if (!ii || (ii.holder && ii.holder.classList && ii.holder.classList.contains('vg-hidden'))) continue;
+              if (ii.input){ first=ii.input; break; }
+            }
+            if (first){ first.checked=true; first.dispatchEvent(new Event('change',{bubbles:true})); selections[i]=String(first.value); changed=true; }
+          }
+        }
+      }
+
+      if (changed){ setTimeout(applyFilter, 0); }
+    }
+
+    function bind(){
+      scope.addEventListener('change', function(e){
+        var t = e.target; if (!t || !t.matches) return;
+        if (t.matches('select[name^="options["]') || t.matches('input[type="radio"][name^="options[" ]') || t.matches('input[type="radio"][name^="options["]')){ applyFilter(); }
+      }, true);
+      applyFilter();
+      try { var mo = new MutationObserver(function(){ applyFilter(); }); mo.observe(scope, {childList:true, subtree:true}); } catch(_) {}
+    }
+
+    // CSS für Ausblendung – lokal und unaufdringlich
+    (function injectCss(){
+      if (document.getElementById('variant-guard-css')) return;
+      var st=document.createElement('style'); st.id='variant-guard-css'; st.textContent='.vg-hidden{display:none!important}';
+      document.head.appendChild(st);
+    })();
+
+    if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', bind); } else { bind(); }
+
+  } catch(e){}
+})();
+</script>

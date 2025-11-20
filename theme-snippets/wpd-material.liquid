@@ -1,0 +1,8 @@
+{%- comment -%}
+WPD Material Helper: Gibt Material für Konfigurator/Launcher aus.
+Erzeugt sowohl ein <meta>-Tag als auch ein verstecktes DIV als Fallback.
+{%- endcomment -%}
+{%- if product.metafields.custom.material -%}
+  <meta name="wpd:material" content="{{ product.metafields.custom.material | escape }}">
+  <div data-product-material="{{ product.metafields.custom.material | escape }}" style="display:none"></div>
+{%- endif -%}

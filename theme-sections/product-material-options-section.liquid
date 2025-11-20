@@ -1,0 +1,27 @@
+{%- comment -%}
+Section: product-material-options-section.liquid
+Purpose: Material-Buttons (weitere Materialien) als eigenständige Section, getrennt von "Weitere Farben (v2)".
+Hinweis: Initialisierung via Asset assets/wpd-materials.js. Konfiguration über Section-Settings.
+{%- endcomment -%}
+
+{%- assign _title = section.settings.materials_title | default: 'Weitere Materialvarianten dieses Designs:' -%}
+{%- assign _sort = section.settings.materials_sort | default: 'Vlies,Vinyl,Textil,Papier' -%}
+{%- assign _always_show = section.settings.always_show | default: false -%}
+{%- assign _min_items = 2 -%}
+{%- if _always_show -%}{%- assign _min_items = 1 -%}{%- endif -%}
+
+<section class="product-material-options" id="product-material-options-{{ section.id }}">
+  {% render 'product-material-options', materials_title: _title, materials_sort: _sort, min_items: _min_items %}
+</section>
+
+{% schema %}
+{
+  "name": "Material-Optionen",
+  "settings": [
+    { "type": "text", "id": "materials_title", "label": "Titel", "default": "Weitere Materialvarianten dieses Designs:" },
+    { "type": "text", "id": "materials_sort", "label": "Bevorzugte Sortierreihenfolge (Komma-getrennt)", "default": "Vlies,Vinyl,Textil,Papier", "info": "Optional. Reihenfolge der bevorzugten Labels; übrige werden danach A–Z sortiert." },
+    { "type": "checkbox", "id": "always_show", "label": "Immer anzeigen (auch bei nur 1 Variante)", "default": false, "info": "Wenn aktiv, wird die Box auch angezeigt, wenn nur eine Material-Variante gefunden wird." }
+  ],
+  "enabled_on": { "templates": ["product"] }
+}
+{% endschema %}

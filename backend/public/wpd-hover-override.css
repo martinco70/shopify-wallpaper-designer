@@ -1,0 +1,14 @@
+/**
+ * wpd-hover-override.css (Plan B Schritt 1)
+ * Erzwingt Hover-Swap mit hoher Spezifität und !important gegen Legacy :has()-Regeln.
+ * Inklusive z-index-Layering, Default-Opacity und Neutralisierung von .second-img-first.
+ */
+/* removed */
+.product-card.hover-enabled figure img:first-of-type,
+figure.hover-enabled img:first-of-type { position:relative !important; z-index:1 !important; display:block !important; opacity:1 !important; transition:opacity .18s ease !important; }
+.product-card.hover-enabled figure img+img,
+figure.hover-enabled img+img { display:block !important; position:absolute !important; inset:0 !important; z-index:2 !important; opacity:0 !important; transition:opacity .18s ease !important; pointer-events:none !important; }
+.product-card.hover-enabled:hover figure img+img,
+figure.hover-enabled:hover img+img { opacity:1 !important; }
+.product-card.hover-enabled:hover figure img:first-of-type,
+figure.hover-enabled:hover img:first-of-type { opacity:0 !important; }

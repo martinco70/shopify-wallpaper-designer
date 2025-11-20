@@ -1,0 +1,15 @@
+{%- comment -%}
+Snippet: design-sibling-card
+Usage: Optional server-side rendering of a single sibling card. Not used by default (client renders).
+Inputs: product
+{%- endcomment -%}
+{%- if product -%}
+  <a class="product-siblings__card" href="{{ product.url }}" role="listitem">
+    {%- if product.featured_image -%}
+      <img class="product-siblings__img" loading="lazy" decoding="async"
+           src="{{ product.featured_image | img_url: '400x400' }}"
+           alt="{{ product.featured_image.alt | default: product.title | escape }}" />
+    {%- endif -%}
+    <div class="product-siblings__title">{{ product.title }}</div>
+  </a>
+{%- endif -%}

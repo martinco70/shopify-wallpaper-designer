@@ -1,0 +1,120 @@
+{% comment %}
+Section: WPD Launcher Button
+Usage: Add this section to a product template to render the Configurator button for selected products only.
+Settings:
+- button_label: Text of the button
+- stop_propagation: If true, stops click propagation (rarely needed)
+
+The section renders a [data-wpd] container and a [data-wpd-open] trigger button.
+It expects assets/wpd-launcher.js to be included globally (theme.liquid/head or snippet wallpaper-designer.liquid).
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "WPD Konfigurator Button",
+  "settings": [
+    { "type": "text", "id": "button_label", "label": "Button-Text", "default": "Konfigurator öffnen" },
+    { "type": "checkbox", "id": "stop_propagation", "label": "Event-Weitergabe stoppen (nur bei Bedarf)", "default": false },
+    { "type": "checkbox", "id": "apply_wpd_style", "label": "WPD-Button-Stil anwenden (opt-in)", "default": false },
+    { "type": "checkbox", "id": "always_reset", "label": "Designer bei jedem Öffnen zurücksetzen", "default": true }
+  ],
+  "presets": [{ "name": "WPD Konfigurator Button" }]
+}
+{% endschema %}
+
+{% assign shop_domain = shop.permanent_domain | default: shop.domain %}
+
+{%- comment -%}
+  Produkt-Metafeld (wd-picture) oder Fallback ermitteln (wie im Snippet):
+{%- endcomment -%}
+{%- assign pmf = product.metafields['custom']['wd-picture'] -%}
+{%- if pmf == blank -%}{%- assign pmf = product.metafields['custom']['wd_picture'] -%}{%- endif -%}
+{%- assign pmf_url = blank -%}
+{%- if pmf -%}
+  {%- if pmf.value and pmf.value != blank -%}
+    {%- assign file_url_candidate = pmf.value | file_url -%}
+    {%- assign image_url_candidate = pmf.value | image_url: width: 2048 -%}
+    {%- assign tmpurl = file_url_candidate -%}
+    {%- if tmpurl == blank -%}{%- assign tmpurl = image_url_candidate -%}{%- endif -%}
+    {%- if tmpurl == blank -%}{%- assign tmpurl = pmf.value -%}{%- endif -%}
+    {%- assign pmf_url = tmpurl -%}
+  {%- else -%}
+    {%- assign pmf_url = pmf -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- comment -%}
+  Absolute URL sicherstellen (Shopify liefert teils protokoll-relative URLs mit "//").
+{%- endcomment -%}
+{%- assign pmf_abs = pmf_url -%}
+{%- if pmf_url and pmf_url != blank -%}
+  {%- if pmf_url | slice: 0, 2 == '//' -%}
+    {%- assign pmf_abs = 'https:' | append: pmf_url -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- comment -%}
+  Bahnenbreite Metafeld (custom.bahnenbreite_in_cm) für expliziten Bahnen-Modus.
+{%- endcomment -%}
+{%- assign bmf = product.metafields['custom']['bahnenbreite_in_cm'] -%}
+{%- assign bahnen_cm = blank -%}
+{%- if bmf -%}
+  {%- if bmf.value and bmf.value != blank -%}
+    {%- assign bahnen_cm = bmf.value -%}
+  {%- else -%}
+    {%- assign bahnen_cm = bmf -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- comment -%}
+  Rollback: wd_calc (custom.wd_calc) direkt an den Launcher weitergeben.
+{%- endcomment -%}
+{%- assign wdc = product.metafields['custom']['wd_calc'] -%}
+{%- assign wdc_val = blank -%}
+{%- if wdc -%}
+  {%- if wdc.value and wdc.value != blank -%}
+    {%- assign wdc_val = wdc.value -%}
+  {%- else -%}
+    {%- assign wdc_val = wdc -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- assign sel_variant = product.selected_or_first_available_variant -%}
+{%- assign variant_sku = sel_variant.sku | default: '' -%}
+
+<div id="wpd-launcher-wrapper-{{ section.id }}"
+     class="wpd-section"
+     data-wpd
+     data-backend="{{ settings.wpd_backend | default: 'https://app.wirzapp.ch' }}"
+     data-shop="{{ shop_domain }}"
+     data-product-id="{{ product.id }}"
+     data-title="{{ product.title | escape }}"
+     {% if variant_sku != '' %}data-sku="{{ variant_sku | escape }}"{% endif %}
+  {% if pmf_abs != blank %}data-image-variant="{{ pmf_abs | escape }}"{% endif %}
+    {% if bahnen_cm != blank %}data-bahnenbreite="{{ bahnen_cm | replace: ',', '.' | escape }}"{% endif %}
+    {% if wdc_val != blank %}data-wd-calc="{{ wdc_val | escape }}"{% endif %}
+    {% if section.settings.always_reset %}data-wpd-reset="1"{% endif %}
+     data-wpd-wrapper>
+  <button type="button"
+       {% if section.settings.apply_wpd_style %}class="wpd-launcher-btn"{% endif %}
+          data-wpd-open
+       {% if section.settings.apply_wpd_style %}data-wpd-style="1"{% endif %}
+          {% if section.settings.stop_propagation %}data-wpd-stop="1"{% endif %}>
+    {{ section.settings.button_label }}
+  </button>
+</div>
+
+{%- comment -%}
+  Hidden Variant Map (Preis + Bild pro Variante) – nutzt dasselbe wd-picture auf Produkt-Ebene.
+{%- endcomment -%}
+<div id="wpd-variant-metafields" style="display:none">
+  {%- for v in product.variants -%}
+  {%- assign loop_url = pmf_abs -%}
+    {%- assign price_num = v.price | money_without_currency | replace: ',', '.' -%}
+    <div data-variant-id="{{ v.id }}" {% if loop_url != '' %}data-wd-picture="{{ loop_url | escape }}"{% endif %} data-wd-price="{{ price_num }}"></div>
+  {%- endfor -%}
+</div>
+
+{%- comment -%}
+Reposition script entfernt: Für Block-Integration nicht mehr nötig.
+{%- endcomment -%}

@@ -1,0 +1,61 @@
+﻿{
+    "hoh-aphrodite":  [
+                          "hohenberger-adonea-aphrodite-beige-creme",
+                          "hohenberger-adonea-aphrodite-blau",
+                          "hohenberger-adonea-aphrodite-braun",
+                          "hohenberger-adonea-aphrodite-rot",
+                          "hohenberger-adonea-aphrodite-weiss"
+                      ],
+    "hoh-ares":  [
+                     "hohenberger-adonea-ares-grau",
+                     "hohenberger-adonea-ares-grau1",
+                     "hohenberger-adonea-ares-kupfer",
+                     "hohenberger-adonea-ares-weiss"
+                 ],
+    "hoh-zeus":  [
+                     "hohenberger-adonea-zeus-beige-creme",
+                     "hohenberger-adonea-zeus-beige-creme-1",
+                     "hohenberger-adonea-zeus-blau",
+                     "hohenberger-adonea-zeus-braun",
+                     "hohenberger-adonea-zeus-gold",
+                     "hohenberger-adonea-zeus-gold-1",
+                     "hohenberger-adonea-zeus-grau",
+                     "hohenberger-adonea-zeus-grau-1",
+                     "hohenberger-adonea-zeus-grau-2",
+                     "hohenberger-adonea-zeus-grau-3",
+                     "hohenberger-adonea-zeus-rot",
+                     "hohenberger-adonea-zeus-weiss",
+                     "hohenberger-adonea-zeus-weiss-1"
+                 ],
+    "hoh-nerites":  [
+                        "hohenberger-adonea-nerites-beige-creme",
+                        "hohenberger-adonea-nerites-beige-creme-1",
+                        "hohenberger-adonea-nerites-beige-creme-2",
+                        "hohenberger-adonea-nerites-blau",
+                        "hohenberger-adonea-nerites-grau",
+                        "hohenberger-adonea-nerites-grau-1",
+                        "hohenberger-adonea-nerites-grun",
+                        "hohenberger-adonea-nerites-rot",
+                        "hohenberger-adonea-nerites-weiss"
+                    ],
+    "hoh-poseidon":  [
+                         "hohenberger-adonea-poseidon-beige-creme",
+                         "hohenberger-adonea-poseidon-beige-creme-1",
+                         "hohenberger-adonea-poseidon-blau",
+                         "hohenberger-adonea-poseidon-grau",
+                         "hohenberger-adonea-poseidon-grun",
+                         "hohenberger-adonea-poseidon-weiss"
+                     ],
+    "hoh-hermes":  [
+                       "hohenberger-adonea-hermes-beige",
+                       "hohenberger-adonea-hermes-beige-creme",
+                       "hohenberger-adonea-hermes-beige-creme-1",
+                       "hohenberger-adonea-hermes-blau",
+                       "hohenberger-adonea-hermes-gold",
+                       "hohenberger-adonea-hermes-grau",
+                       "hohenberger-adonea-hermes-grun",
+                       "hohenberger-adonea-hermes-rot",
+                       "hohenberger-adonea-hermes-weiss",
+                       "hohenberger-adonea-hermes-grau1"
+                   ]
+}

@@ -1,0 +1,81 @@
+{%- comment -%}
+Section: product-siblings-v2.liquid
+Purpose: Grid mit Geschwister-Produkten (gleiche Design-Gruppe) unterhalb der Varianten.
+Zusätzlich: Rendert Materialvarianten-Buttons über Farbvarianten.
+{%- endcomment -%}
+
+{%- assign ns = section.settings.metafield_namespace | default: 'custom' -%}
+{%- assign key = section.settings.metafield_key | default: 'designname' -%}
+{%- assign group_code = '' -%}
+{%- if product.metafields[ns] and product.metafields[ns][key] -%}
+  {%- assign group_raw = product.metafields[ns][key] -%}
+  {%- assign group_code = group_raw.value | default: group_raw -%}
+{%- endif -%}
+
+<div class="product-siblings-v2-root">
+
+{%- if section.settings.materials_enabled != false -%}
+  {% render 'product-material-options', materials_title: section.settings.materials_title, materials_sort: section.settings.materials_sort %}
+{%- endif -%}
+{%- if group_code == blank -%}
+  <div class="product-siblings" data-empty="1"></div>
+{%- else -%}
+  <section class="product-siblings" id="product-siblings-{{ section.id }}"
+    data-build="siblings-2025-10-29-v2"
+    data-initial-count="{{ section.settings.initial_count | default: 12 }}"
+    data-batch-size="{{ section.settings.batch_size | default: 12 }}"
+    data-columns-desktop="{{ section.settings.columns_desktop | default: 4 }}"
+    data-columns-tablet="{{ section.settings.columns_tablet | default: 3 }}"
+    data-columns-mobile="{{ section.settings.columns_mobile | default: 2 }}"
+    data-show-oos-badge="{{ section.settings.show_oos_badge | default: false }}"
+    data-sort-mode="{{ section.settings.sort_mode | default: 'metaobject' }}"
+    data-group-code="{{ group_code | handleize }}"
+    data-group-raw="{{ group_code | escape }}"
+    data-product-vendor="{{ product.vendor | escape }}"
+    data-source="sf-products"
+    data-shop-domain="{{ shop.permanent_domain }}"
+    data-proxy-url="https://app.wirzapp.ch/api/siblings"
+    {%- if section.settings.storefront_token != blank -%}
+      data-sf-token="{{ section.settings.storefront_token | escape }}"
+    {%- endif -%}
+    data-groups-asset="{{ 'design-groups.json' | asset_url }}"
+  >
+    {%- if section.settings.title != blank -%}
+      <h2 class="product-siblings__title">{{ section.settings.title }}</h2>
+    {%- endif -%}
+    <div class="product-siblings__grid" role="list"></div>
+  <div class="product-siblings__status" role="status" hidden style="display:none!important"></div>
+    <div class="product-siblings__actions">
+      <button type="button" class="product-siblings__load" hidden>Mehr laden</button>
+    </div>
+    {%- comment -%} Scripts are loaded globally via assets to satisfy Theme Editor HTML checks {%- endcomment -%}
+  </section>
+{%- endif -%}
+
+</div>
+
+{% schema %}
+{
+  "name": "Weitere Farben (v2)",
+  "settings": [
+    { "type": "text", "id": "title", "label": "Titel", "default": "Weitere Farben" },
+    { "type": "text", "id": "metafield_namespace", "label": "Metafeld Namespace", "default": "custom" },
+    { "type": "text", "id": "metafield_key", "label": "Metafeld Schlüssel (Grouping)", "default": "designname" },
+    { "type": "text", "id": "storefront_token", "label": "Storefront API Token (öffentlich)", "info": "Erstelle einen Storefront-API-Token und füge ihn hier ein." },
+    { "type": "range", "id": "initial_count", "label": "Initiale Anzahl", "min": 6, "max": 48, "step": 6, "default": 24 },
+    { "type": "range", "id": "batch_size", "label": "Mehr-Laden Anzahl", "min": 6, "max": 36, "step": 6, "default": 12 },
+    { "type": "range", "id": "columns_desktop", "label": "Spalten (Desktop)", "min": 2, "max": 6, "step": 1, "default": 4 },
+    { "type": "range", "id": "columns_tablet", "label": "Spalten (Tablet)", "min": 2, "max": 4, "step": 1, "default": 3 },
+    { "type": "range", "id": "columns_mobile", "label": "Spalten (Mobile)", "min": 1, "max": 3, "step": 1, "default": 2 },
+    { "type": "checkbox", "id": "show_oos_badge", "label": "Badge für Nicht verfügbar anzeigen", "default": false },
+    { "type": "header", "content": "Materialvarianten" },
+    { "type": "checkbox", "id": "materials_enabled", "label": "Materialvarianten anzeigen", "default": true },
+    { "type": "text", "id": "materials_title", "label": "Titel für Materialvarianten", "default": "Weitere Materialvarianten dieses Designs:" },
+    { "type": "text", "id": "materials_sort", "label": "Bevorzugte Sortierreihenfolge (Komma-getrennt)", "default": "Vlies,Vinyl,Textil,Papier", "info": "Optional. Reihenfolge der bevorzugten Labels; übrige werden danach A–Z sortiert." }
+  ],
+  "enabled_on": { "templates": ["product"] },
+  "presets": [
+    { "name": "Weitere Farben (v2)", "category": "Product" }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,37 @@
+{%- comment -%}
+DEPRECATED: Diese Section ist veraltet und wurde durch "Weitere Farben (v2)" ersetzt.
+Bitte verwende `theme-sections/product-siblings-v2.liquid`.
+Diese Datei bleibt nur aus Kompatibilitätsgründen bestehen und rendert absichtlich nichts.
+{%- endcomment -%}
+
+<div class="product-siblings" data-deprecated="true" hidden></div>
+<script>
+  try { console.warn('[section:product-siblings] VERALTET – bitte "Weitere Farben (v2)" verwenden.'); } catch(_){ }
+</script>
+
+{% schema %}
+{
+  "name": "Weitere Farben (ALT – deaktiviert)",
+  "settings": [
+    { "type": "text", "id": "title", "label": "Titel", "default": "Weitere Farben" },
+    { "type": "text", "id": "metafield_namespace", "label": "Metafeld Namespace", "default": "custom" },
+    { "type": "text", "id": "metafield_key", "label": "Metafeld Schlüssel (Grouping)", "default": "designname" },
+    { "type": "text", "id": "storefront_token", "label": "Storefront API Token (öffentlich)", "info": "Erstelle einen Storefront-API-Token und füge ihn hier ein." },
+  { "type": "range", "id": "initial_count", "label": "Initiale Anzahl", "min": 6, "max": 48, "step": 6, "default": 24 },
+    { "type": "range", "id": "batch_size", "label": "Mehr-Laden Anzahl", "min": 6, "max": 36, "step": 6, "default": 12 },
+    { "type": "range", "id": "columns_desktop", "label": "Spalten (Desktop)", "min": 2, "max": 6, "step": 1, "default": 4 },
+    { "type": "range", "id": "columns_tablet", "label": "Spalten (Tablet)", "min": 2, "max": 4, "step": 1, "default": 3 },
+    { "type": "range", "id": "columns_mobile", "label": "Spalten (Mobile)", "min": 1, "max": 3, "step": 1, "default": 2 },
+    { "type": "checkbox", "id": "show_oos_badge", "label": "Badge für Nicht verfügbar anzeigen", "default": false },
+    { "type": "header", "content": "Materialvarianten" },
+    { "type": "checkbox", "id": "materials_enabled", "label": "Materialvarianten anzeigen", "default": true },
+    { "type": "text", "id": "materials_title", "label": "Titel für Materialvarianten", "default": "Weitere Materialvarianten dieses Designs:" },
+    { "type": "text", "id": "materials_sort", "label": "Bevorzugte Sortierreihenfolge (Komma-getrennt)", "default": "Vlies,Vinyl,Textil,Papier", "info": "Optional. Reihenfolge der bevorzugten Labels; übrige werden danach A–Z sortiert." },
+    { "type": "select", "id": "sort_mode", "label": "Sortierung", "options": [
+      {"value": "metaobject", "label": "Metaobject-Reihenfolge"},
+      {"value": "title", "label": "Titel A–Z"}
+    ], "default": "metaobject" }
+  ],
+  "enabled_on": { "templates": [] }
+}
+{% endschema %}

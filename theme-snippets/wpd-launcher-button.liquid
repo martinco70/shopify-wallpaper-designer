@@ -1,0 +1,97 @@
+{%- comment -%}
+Snippet: WPD Launcher Button (Block Version)
+Renders the configurator trigger inside main-product as a block.
+Relies on global wpd-launcher.js for behavior.
+Parameters:
+  button_label (optional) - override text
+{%- endcomment -%}
+
+{%- assign shop_domain = shop.permanent_domain | default: shop.domain -%}
+{%- assign sel_variant = product.selected_or_first_available_variant -%}
+{%- assign variant_sku = sel_variant.sku | default: '' -%}
+
+{%- comment -%}
+  Product metafield lookup (custom.wd-picture preferred; supports custom.wd_picture fallback). Build a URL robustly.
+{%- endcomment -%}
+{%- assign pmf = product.metafields['custom']['wd-picture'] -%}
+{%- if pmf == blank -%}{%- assign pmf = product.metafields['custom']['wd_picture'] -%}{%- endif -%}
+{%- assign pmf_url = blank -%}
+{%- if pmf -%}
+  {%- if pmf.value and pmf.value != blank -%}
+    {%- assign tmpurl = pmf.value | image_url: width: 2048 -%}
+    {%- if tmpurl == blank -%}{%- assign tmpurl = pmf.value | file_url -%}{%- endif -%}
+    {%- if tmpurl == blank -%}{%- assign tmpurl = pmf.value -%}{%- endif -%}
+    {%- assign pmf_url = tmpurl -%}
+  {%- else -%}
+    {%- assign pmf_url = pmf -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- comment -%}
+  Optional: Bahnenbreite für Tapetenkonfigurator (wd-calc=bahnen)
+  Erwartet Produkt-Metafeld custom.bahnenbreite_in_cm (Zahl). Wenn vorhanden, setzen wir data-wd-calc="bahnen" und data-bahnenbreite.
+{%- endcomment -%}
+{%- assign bmf = product.metafields['custom']['bahnenbreite_in_cm'] -%}
+{%- assign bahnen_cm = blank -%}
+{%- if bmf -%}
+  {%- if bmf.value and bmf.value != blank -%}
+    {%- assign bahnen_cm = bmf.value -%}
+  {%- else -%}
+    {%- assign bahnen_cm = bmf -%}
+  {%- endif -%}
+{%- endif -%}
+
+{%- comment -%}
+  Rollback: wd_calc direkt aus Produkt-Metafeld weitergeben (custom.wd_calc). Falls vorhanden, setzen wir data-wd-calc.
+{%- endcomment -%}
+{%- assign wdc = product.metafields['custom']['wd_calc'] -%}
+{%- assign wdc_val = blank -%}
+{%- if wdc -%}
+  {%- if wdc.value and wdc.value != blank -%}
+    {%- assign wdc_val = wdc.value -%}
+  {%- else -%}
+    {%- assign wdc_val = wdc -%}
+  {%- endif -%}
+{%- endif -%}
+
+<div
+  class="wpd-block"
+  data-wpd
+  data-backend="{{ settings.wpd_backend | default: 'https://app.wirzapp.ch' }}"
+  data-shop="{{ shop_domain }}"
+  data-product-id="{{ product.id }}"
+  data-title="{{ product.title | escape }}"
+  {% if variant_sku != '' %}data-sku="{{ variant_sku | escape }}"{% endif %}
+  {% if pmf_url != blank %}data-image-variant="{{ pmf_url | escape }}"{% endif %}
+  {% if bahnen_cm != blank %}data-bahnenbreite="{{ bahnen_cm | replace: ',', '.' | escape }}"{% endif %}
+  {% if wdc_val != blank %}data-wd-calc="{{ wdc_val | escape }}"{% endif %}
+>
+  <button type="button" data-wpd-open>
+    {{ button_label | default: 'Konfigurator öffnen' }}
+  </button>
+</div>
+
+{%- comment -%}
+  Hidden variant map: for compatibility, expose the same product-level wd-picture for all variants + price.
+  The launcher will still resolve the image via this map or fall back to data-image-variant.
+{%- endcomment -%}
+<div id="wpd-variant-metafields" style="display:none">
+  {%- for v in product.variants -%}
+    {%- assign loop_url = pmf_url -%}
+    {%- assign price_num = v.price | money_without_currency | replace: ',', '.' -%}
+    <div data-variant-id="{{ v.id }}" {% if loop_url != '' %}data-wd-picture="{{ loop_url | escape }}"{% endif %} data-wd-price="{{ price_num }}"></div>
+  {%- endfor -%}
+</div>
+
+{%- comment -%}
+  Optional loader: only include if launcher script not already present (simple heuristic by global flag).
+  If theme.liquid already loads wpd-launcher.js, you can remove this block.
+{%- endcomment -%}
+{%- comment -%}
+  Loader entfernt: Zentraler Einbindungspunkt in layout/theme.liquid via external wpd-launcher (Variante A).
+  Dieses Snippet liefert nur noch Markup & Datenattribute.
+{%- endcomment -%}
+
+{%- comment -%}
+No reposition JS here; placement controlled by block order in main-product.
+{%- endcomment -%}

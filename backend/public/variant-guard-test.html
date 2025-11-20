@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Variant Guard Test</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:20px;}
+    .row{margin-bottom:12px}
+    ul.check{display:flex;gap:8px;padding:0;list-style:none}
+    ul.check li{border:1px solid #ccc;padding:6px 10px;border-radius:4px;cursor:pointer}
+    ul.check li input{display:none}
+    .vg-hidden{display:none!important}
+    .ok{color:#0a0}
+    .fail{color:#a00}
+    pre{background:#f7f7f7;padding:10px;border-radius:6px;max-height:220px;overflow:auto}
+  </style>
+  <script>
+  // Minimal helper to mark <li> clicks as radio selection for UX
+  document.addEventListener('click', function(e){
+    var li = e.target.closest('ul.check li');
+    if(!li) return; var input = li.querySelector('input[type="radio"]');
+    if(input){ input.checked = true; input.dispatchEvent(new Event('change', { bubbles:true })); }
+  });
+  </script>
+</head>
+<body>
+  <h1>Variant Guard – Lokaler Funktionstest</h1>
+  <p>Dieser Test simuliert eine Produktseite mit 3 Optionen (Color, Size, Finish). Der Guard soll nur nicht-existierende Kombinationen ausblenden. Out-of-Stock bleibt sichtbar.</p>
+
+  <article id="main-product">
+    <div class="row">
+      <label for="opt-0">Color</label>
+      <select name="options[0]" id="opt-0">
+        <option value="">Bitte wählen…</option>
+        <option value="Red">Red</option>
+        <option value="Blue">Blue</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="opt-1">Size</label>
+      <select name="options[1]" id="opt-1">
+        <option value="">Bitte wählen…</option>
+        <option value="Small">Small</option>
+        <option value="Large">Large</option>
+      </select>
+    </div>
+    <div class="row">
+      <div>Finish (Buttons)</div>
+      <ul class="check">
+        <li><input type="radio" name="options[2]" value="Matte" id="f-matte"><label for="f-matte">Matte</label></li>
+        <li><input type="radio" name="options[2]" value="Gloss" id="f-gloss"><label for="f-gloss">Gloss</label></li>
+      </ul>
+    </div>
+  </article>
+
+  <h2>Testergebnisse</h2>
+  <div id="results"></div>
+  <pre id="log"></pre>
+
+  <script type="application/json" id="variant-guard-data-0">{
+    "productId": 0,
+    "options": ["Color","Size","Finish"],
+    "combinedListing": false,
+    "variants": [
+      {"id": 1, "available": true,  "options": ["Red",  "Small", "Matte"]},
+      {"id": 2, "available": false, "options": ["Red",  "Large", "Matte"]},
+      {"id": 3, "available": true,  "options": ["Blue", "Large", "Gloss"]}
+    ]
+  }</script>
+
+  <script>
+  // Variant Guard Logic (adapted: looks for #variant-guard-data-0 instead of Liquid id)
+  (function(){
+    try{
+      var scope = document.querySelector('article#main-product') || document;
+      var dataEl = document.getElementById('variant-guard-data-0');
+      if(!dataEl) return;
+      var data = {}; try{ data = JSON.parse(dataEl.textContent || dataEl.innerText || '{}'); }catch(e){ return; }
+      if (data.combinedListing) return;
+
+      var options = data.options || [];
+      var variants = data.variants || [];
+      if (!options.length || !variants.length) return;
+      var cfg = { showHints: true, autoCorrect: true };
+
+      function getOptionControls(){
+        var ctrls = [];
+        for (var i=0;i<options.length;i++){
+          var sel = scope.querySelector('select[name^="options["][id*="-'+i+'"]');
+          if (!sel){ var all = scope.querySelectorAll('select[name^="options["]'); if (all && all[i]) sel = all[i]; }
+          if (sel){ ctrls.push({ index:i, type:'select', select: sel }); continue; }
+          var groups = scope.querySelectorAll('ul.check');
+          var group = groups && groups[i] ? groups[i] : null;
+          if (group){
+            var rads = group.querySelectorAll('input[type="radio"][name^="options["]');
+            ctrls.push({ index:i, type:'buttons', group: group, radios: rads });
+            continue;
+          }
+          ctrls.push({ index:i, type:'none' });
+        }
+        return ctrls;
+      }
+
+      function currentSelections(ctrls){
+        var sel = new Array(options.length).fill(null);
+        for (var i=0;i<ctrls.length;i++){
+          var c = ctrls[i];
+          if (c.type==='select' && c.select){ var val = c.select.value; if (val!=null && String(val).trim()!=='') sel[i]=String(val); }
+          else if (c.type==='buttons' && c.radios){ for (var j=0;j<c.radios.length;j++){ var r=c.radios[j]; if (r && r.checked){ sel[i]=String(r.value); break; } } }
+        }
+        return sel;
+      }
+
+      function allowedSetAt(index, selections){
+        for (var p=0;p<index;p++){ if (selections[p]==null) return null; }
+        var allowed = Object.create(null);
+        for (var k=0;k<variants.length;k++){
+          var v = variants[k]; var ok = true;
+          for (var p=0;p<index;p++){ if (v.options[p] !== selections[p]) { ok=false; break; } }
+          if (!ok) continue;
+          var val = v.options[index]; if (val!=null) allowed[val]=true;
+        }
+        return allowed;
+      }
+
+      function setHidden(el, hide){
+        if (!el) return; var tag = (el.tagName||'').toUpperCase();
+        if (tag==='OPTION'){ try { el.hidden = !!hide; } catch(_) {}
+          if (hide){ el.setAttribute && el.setAttribute('aria-hidden','true'); }
+          else { el.removeAttribute && el.removeAttribute('aria-hidden'); }
+        } else {
+          if (hide){ el.classList && el.classList.add('vg-hidden'); el.setAttribute && el.setAttribute('aria-hidden','true'); }
+          else { el.classList && el.classList.remove('vg-hidden'); el.removeAttribute && el.removeAttribute('aria-hidden'); }
+        }
+      }
+
+      function applyFilter(){
+        var ctrls = getOptionControls();
+        var selections = currentSelections(ctrls);
+        var changed = false;
+        for (var i=0;i<ctrls.length;i++){
+          var ctrl = ctrls[i]; var allowed = allowedSetAt(i, selections);
+          if (ctrl.type==='select' && ctrl.select){
+            var opts = ctrl.select.options || [];
+            for (var j=0;j<opts.length;j++){
+              var opt = opts[j]; if (!opt) continue; var val = String(opt.value||'').trim();
+              if (allowed==null){ if (opt.dataset && opt.dataset.vgHide==='1'){ setHidden(opt,false); delete opt.dataset.vgHide; } continue; }
+              var hide = val==='' ? false : !allowed[val];
+              if (hide){ setHidden(opt,true); if (opt.dataset) opt.dataset.vgHide='1'; }
+              else { if (opt.dataset && opt.dataset.vgHide==='1'){ setHidden(opt,false); delete opt.dataset.vgHide; } }
+            }
+            if (allowed && selections[i]!=null && allowed[selections[i]]!==true && cfg.autoCorrect){
+              for (var j2=0;j2<opts.length;j2++){ var o2=opts[j2]; if (!o2) continue; var v2=String(o2.value||'').trim();
+                var isHidden = o2.classList && o2.classList.contains('vg-hidden');
+                if (!isHidden && allowed[v2]){ ctrl.select.value=v2; ctrl.select.dispatchEvent(new Event('change',{bubbles:true})); selections[i]=v2; changed=true; break; }
+              }
+            }
+          } else if (ctrl.type==='buttons' && ctrl.group){
+            var items = ctrl.group.querySelectorAll('li');
+            for (var m=0;m<items.length;m++){
+              var li = items[m]; var input = li && li.querySelector && li.querySelector('input[type="radio"]'); if (!input) continue;
+              var val = String(input.value||'').trim();
+              if (allowed==null){ if (li.dataset && li.dataset.vgHide==='1'){ setHidden(li,false); delete li.dataset.vgHide; } continue; }
+              var hide = val==='' ? false : !allowed[val];
+              if (hide){ setHidden(li,true); if (li.dataset) li.dataset.vgHide='1'; if (input.checked && cfg.autoCorrect){ input.checked=false; } }
+              else { if (li.dataset && li.dataset.vgHide==='1'){ setHidden(li,false); delete li.dataset.vgHide; } }
+            }
+            var selVal = selections[i];
+            if (allowed && (selVal==null || !allowed[selVal]) && cfg.autoCorrect){
+              var first=null; for (var m2=0;m2<items.length;m2++){ var li2=items[m2]; if (!li2 || li2.classList.contains('vg-hidden')) continue; var in2 = li2.querySelector('input[type="radio"]'); if (in2){ first=in2; break; } }
+              if (first){ first.checked=true; first.dispatchEvent(new Event('change',{bubbles:true})); selections[i]=String(first.value); changed=true; }
+            }
+          }
+        }
+        if (changed){ setTimeout(applyFilter, 0); }
+      }
+
+      function bind(){
+        scope.addEventListener('change', function(e){
+          var t = e.target; if (!t || !t.matches) return;
+          if (t.matches('select[name^="options["]') || t.matches('input[type="radio"][name^="options["]')){ applyFilter(); }
+        }, true);
+        applyFilter();
+        try { var mo = new MutationObserver(function(){ applyFilter(); }); mo.observe(scope, {childList:true, subtree:true}); } catch(_) {}
+      }
+
+      (function injectCss(){ if (document.getElementById('variant-guard-css')) return; var st=document.createElement('style'); st.id='variant-guard-css'; st.textContent='.vg-hidden{display:none!important}'; document.head.appendChild(st); })();
+      if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', bind); } else { bind(); }
+    } catch(e){}
+  })();
+
+  // Simple test runner to assert behavior
+  (function(){
+    var log = document.getElementById('log');
+    function write(line, ok){ var d=document.createElement('div'); d.className= ok? 'ok':'fail'; d.textContent=(ok?'PASS: ':'FAIL: ')+line; document.getElementById('results').appendChild(d); }
+    function snapshot(){
+      var s0 = document.getElementById('opt-0');
+      var s1 = document.getElementById('opt-1');
+      var buttons = Array.from(document.querySelectorAll('ul.check li')).map(li=>({ val: li.querySelector('input')?.value, hidden: li.classList.contains('vg-hidden') }));
+      var sizeOpts = Array.from(s1.options).map(o=>({ val:o.value, hidden: !!o.hidden }));
+      return { sizeOpts, buttons };
+    }
+    function setSelect(sel, val){ sel.value = val; sel.dispatchEvent(new Event('change',{bubbles:true})); }
+    function delay(ms){ return new Promise(res=>setTimeout(res, ms)); }
+    async function run(){
+      await delay(50);
+      var s0 = document.getElementById('opt-0');
+      var s1 = document.getElementById('opt-1');
+
+      // 1) Initial: keine Filterung für Size (keine Auswahl für Color)
+      var snap0 = snapshot();
+      var initHidden = snap0.sizeOpts.filter(o=>o.val && o.hidden).length;
+      write('Initial: Size hat keine versteckten Optionen', initHidden===0);
+
+      // 2) Color=Blue → Size sollte Small verstecken, Large sichtbar
+      setSelect(s0, 'Blue'); await delay(30);
+      var snap1 = snapshot();
+      var smallHidden = snap1.sizeOpts.find(o=>o.val==='Small')?.hidden===true;
+      var largeVisible = snap1.sizeOpts.find(o=>o.val==='Large')?.hidden===false;
+      write('Blue gewählt: Size Small ausgeblendet', smallHidden);
+      write('Blue gewählt: Size Large sichtbar', largeVisible);
+
+      // 3) Size=Large → Finish (Buttons) nur Gloss sichtbar (für Blue/Large)
+      setSelect(s1, 'Large'); await delay(30);
+      var snap2 = snapshot();
+      var matteHidden_BlueLarge = snap2.buttons.find(b=>b.val==='Matte')?.hidden===true;
+      var glossVisible_BlueLarge = snap2.buttons.find(b=>b.val==='Gloss')?.hidden===false;
+      write('Blue+Large: Finish Matte ausgeblendet', matteHidden_BlueLarge);
+      write('Blue+Large: Finish Gloss sichtbar', glossVisible_BlueLarge);
+
+      // 4) Color=Red (Size bleibt Large) → Finish Matte sichtbar (auch wenn OOS), Gloss ausgeblendet
+      setSelect(s0, 'Red'); await delay(30);
+      var snap3 = snapshot();
+      var matteVisible_RedLarge = snap3.buttons.find(b=>b.val==='Matte')?.hidden===false;
+      var glossHidden_RedLarge = snap3.buttons.find(b=>b.val==='Gloss')?.hidden===true;
+      write('Red+Large: Finish Matte sichtbar (OOS erlaubt)', matteVisible_RedLarge);
+      write('Red+Large: Finish Gloss ausgeblendet', glossHidden_RedLarge);
+
+      log.textContent = JSON.stringify({ snap0, snap1, snap2, snap3 }, null, 2);
+    }
+    if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', run); } else { run(); }
+  })();
+  </script>
+
+</body>
+</html>

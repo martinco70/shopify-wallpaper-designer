@@ -249,12 +249,30 @@ async function buildProofPdf(data, { code }) {
   // Jetzt Header zeichnen (nach Meta)
   let yCursor = 36;
   doc.fontSize(20).fillColor('#000').text('Gut zum Druck', { align: 'left' });
+  // Version Marker zur Diagnose (hilft zu prüfen ob neue PDF-Version live ist)
+  try {
+    const verLine = `Version: 2025-11-13-1`; // bei Änderungen anpassen
+    doc.fontSize(8).fillColor('#666').text(verLine, { align: 'right' });
+  } catch {}
   // Neuer Titel: Produktname falls vorhanden, sonst Dateiname, Originalgröße nicht mehr anzeigen
   const displayTitle = shopTitle || uploadFilename || null;
   if (displayTitle) {
     doc.fontSize(13).fillColor('#333').text(displayTitle, margin, yCursor, { width: pageWidth - margin * 2, align: 'center' });
     yCursor += doc.currentLineHeight() + 2;
   }
+  // Optional: Materialzeile unterhalb des Titels anzeigen
+  try {
+    let materialLabel = null;
+    if (data && data.product) {
+      const pm = data.product.material;
+      if (pm && typeof pm === 'object' && pm.raw) materialLabel = String(pm.raw);
+      else if (typeof pm === 'string' && pm.trim()) materialLabel = pm.trim();
+    }
+    if (materialLabel) {
+      doc.fontSize(12).fillColor('#555').text(`Material: ${materialLabel}`, margin, yCursor, { width: pageWidth - margin * 2, align: 'center' });
+      yCursor += doc.currentLineHeight() + 1;
+    }
+  } catch {}
   codeCropY = yCursor + 1;
   yCursor += 2 * doc.heightOfString('Xy', { width: pageWidth - margin * 2 }) + 5;
   if (isShopImg && (shopSku || shopTitle)) {

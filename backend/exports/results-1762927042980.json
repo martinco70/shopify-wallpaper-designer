@@ -1,0 +1,66 @@
+{
+  "generatedAt": 1762927042980,
+  "count": 5,
+  "results": [
+    {
+      "product_id": null,
+      "sku": "2024660",
+      "handle": "eijffinger-mini-me-hellblau-399031",
+      "url": "https://wirzwelt.ch/media/catalog/product/3/9/399031.jpg",
+      "position": 2,
+      "wd_picture": false,
+      "ok": false,
+      "error": "product_not_found",
+      "resolved_via": "handle"
+    },
+    {
+      "product_id": null,
+      "sku": "2101622",
+      "handle": "eijffinger-riviera-maison-riviera-maison-2101622",
+      "url": "https://wirzwelt.ch/media/catalog/product/3/5/350510_a.jpg",
+      "position": 1,
+      "wd_picture": false,
+      "ok": false,
+      "error": "product_not_found",
+      "resolved_via": "handle"
+    },
+    {
+      "product_id": null,
+      "sku": "2101622",
+      "handle": "eijffinger-riviera-maison-riviera-maison-2101622",
+      "url": "https://wirzwelt.ch/media/catalog/product/3/5/350510.jpg",
+      "position": 2,
+      "wd_picture": false,
+      "ok": false,
+      "error": "product_not_found",
+      "resolved_via": "handle"
+    },
+    {
+      "product_id": null,
+      "sku": "2101622",
+      "handle": "eijffinger-riviera-maison-riviera-maison-2101622",
+      "url": "https://wirzwelt.ch/media/catalog/product/3/5/350510b.jpg",
+      "position": 3,
+      "wd_picture": false,
+      "ok": false,
+      "error": "product_not_found",
+      "resolved_via": "handle"
+    },
+    {
+      "product_id": null,
+      "sku": "2101654",
+      "handle": "eijffinger-riviera-maison-riviera-maison-2101654",
+      "url": "https://wirzwelt.ch/media/catalog/product/3/5/350571.jpg",
+      "position": 1,
+      "wd_picture": false,
+      "ok": true,
+      "image_id": 68011834114395,
+      "src": "https://cdn.shopify.com/s/files/1/0947/6436/8219/files/9ed409d41ee1b1a310e6daacb3f51b85.jpg?v=1762927042",
+      "resolved_via": "handle",
+      "wd_picture_set": true,
+      "wd_picture_error": null,
+      "wd_picture_ref_id": "gid://shopify/MediaImage/68011834114395",
+      "wd_picture_ref_kind": "MediaImage"
+    }
+  ]
+}

@@ -55,6 +55,10 @@ const INITIAL_PRICE_PARAM = (() => {
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 })();
+// Pricing mode: default fixed_total; enable quantity scaling via ?qtyMode=area_x100
+const QTY_MODE_PARAM = ((URL_PARAMS.get('qtyMode') || '').trim().toLowerCase()) || null; // 'area_x100' | null
+// Standard jetzt: Mengen-Skalierung aktiv, außer explizit ?qtyMode=fixed oder fixed_total
+const USE_QTY_SCALING = QTY_MODE_PARAM === 'area_x100' || QTY_MODE_PARAM === null;
 const formatCHF = (value) => new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0));
 
 // --- Inline SVG Icons (stroke=currentColor) ---
@@ -469,6 +473,13 @@ function App() {
   // Core state
   const [frameWidthCm, setFrameWidthCm] = useState(400);
   const [frameHeightCm, setFrameHeightCm] = useState(240);
+  // Product context (from launcher URL or loaded config)
+  const [productTitle, setProductTitle] = useState(() => {
+    try { return (URL_PARAMS.get('title') || '').trim(); } catch(_) { return ''; }
+  });
+  const [productMaterial, setProductMaterial] = useState(() => {
+    try { return (URL_PARAMS.get('material') || '').trim(); } catch(_) { return ''; }
+  });
   // New: raw input text states to hide defaults until user enters values
   const [inputWidthText, setInputWidthText] = useState('');
   const [inputHeightText, setInputHeightText] = useState('');
@@ -700,6 +711,9 @@ function App() {
     const printH = Math.round(Number(area.printHeightCm) || heightCm);
     const totalPrice = (pricePerM2 != null) ? Number((pricePerM2 * qm).toFixed(2)) : null;
     const params = Object.fromEntries(URL_PARAMS.entries());
+    // Normalize material (if passed via URL)
+    const materialRaw = (params.material || '').trim();
+    const materialNorm = materialRaw ? materialRaw.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase() : '';
     return {
       wall: { widthCm, heightCm },
       print: { widthCm: printW, heightCm: printH },
@@ -714,7 +728,13 @@ function App() {
       image: { url: imageUrl, originalUrl: originalUploadUrl || null },
       // Important: place current zoom/flip after transformState so they always reflect latest UI state
       transform: { ...(transformState || {}), zoom, flipH, flipV },
-      context: { backend: BACKEND_URL, shop: params.shop || null, productId: params.productId || null, sku: params.sku || null }
+      context: { backend: BACKEND_URL, shop: params.shop || null, productId: params.productId || null, sku: params.sku || null },
+      // Provide product info for PDF/UI
+      product: {
+        title: params.title || null,
+        sku: params.sku || null,
+        material: materialRaw ? { raw: materialRaw, normalized: materialNorm } : null
+      }
     };
   };
 
@@ -768,6 +788,15 @@ function App() {
   if (Number.isFinite(h) && h > 0) setInputHeightText(String(h));
       // Price if available
       if (data?.price?.perM2 != null) setPricePerM2(Number(data.price.perM2));
+      // Product info for UI (title/material)
+      try {
+        const p = data && data.product ? data.product : null;
+        if (p && typeof p === 'object') {
+          if (p.title && String(p.title).trim()) setProductTitle(String(p.title).trim());
+          const mat = (p.material && typeof p.material === 'object' && p.material.raw) ? String(p.material.raw) : (typeof p.material === 'string' ? p.material : '');
+          if (mat && String(mat).trim()) setProductMaterial(String(mat).trim());
+        }
+      } catch(_) {}
       // Image URL preference: preview/url/originalUrl
       let restoredImage = null;
       if (data?.image) {
@@ -899,6 +928,10 @@ function App() {
       if (area.strips) props['Anzahl Bahnen'] = String(area.strips);
     }
     props['Fläche'] = `${qm.toFixed(3)} m²`;
+    // Machine-readable properties for scripts/automation
+    props['width_cm'] = String(Math.round(Number(frameWidthCm) || 0));
+    props['height_cm'] = String(Math.round(Number(frameHeightCm) || 0));
+    props['area_m2'] = qm.toFixed(3);
     if (pricePerM2 != null) {
       props['Preis/m²'] = `CHF ${formatCHF(pricePerM2)}`;
       props['Gesamtpreis'] = `CHF ${formatCHF(pricePerM2 * qm)}`;
@@ -909,8 +942,32 @@ function App() {
     } else if (id) {
       props['Konfiguration'] = `${BACKEND_URL}/config/${encodeURIComponent(id)}/pdf`;
     }
+    // Quantity mode
+    let quantity = 1;
+    if (USE_QTY_SCALING) {
+      // Mengen-Skalierung in 0.01 m² Einheiten, aufrunden
+      const units = Math.max(1, Math.ceil(qm * 100));
+      quantity = units;
+      props['Berechnungsmodus'] = 'Mengen-Skalierung (0.01 m²)';
+      props['qty_mode'] = 'area_x100';
+      props['unit_m2'] = '0.01';
+      // Optional: Erwarteter Gesamtpreis zur Kontrolle
+      if (pricePerM2 != null) {
+        const expected = Number((pricePerM2 * qm).toFixed(2));
+        props['Gesamtpreis (erwartet)'] = `CHF ${formatCHF(expected)}`;
+      }
+    } else {
+      // Fixpreis: Menge = 1, nur Anzeigezwecke (Checkout nutzt Variantenpreis)
+      props['Berechnungsmodus'] = 'Fixpreis (Menge=1)';
+      if (pricePerM2 != null) {
+        const total = Number((pricePerM2 * qm).toFixed(2));
+        props['Gesamtpreis (berechnet)'] = `CHF ${formatCHF(total)}`;
+        props['price_override_chf'] = String(total);
+      }
+      props['qty_mode'] = 'fixed_total';
+    }
     try {
-      const payload = { type: 'wpd.cart.add', source: 'wpd', properties: props, quantity: 1 };
+      const payload = { type: 'wpd.cart.add', source: 'wpd', properties: props, quantity };
       window.parent && window.parent.postMessage(payload, '*');
       window.parent && window.parent.postMessage({ type: 'wpd.overlay.close', source: 'wpd' }, '*');
     } catch (_) {}
@@ -1077,6 +1134,12 @@ function App() {
     <div style={{ padding: '8px 12px' }}>
       <style>{`button, input, select { border-radius: 0 !important; }
 @keyframes pulseGreen { 0% { box-shadow: 0 0 0 0 rgba(0,160,0,0.55); } 50% { box-shadow: 0 0 0 6px rgba(0,160,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,160,0,0.55); } }`}</style>
+      {/* Kompakter Hinweis: Nur Material anzeigen, um den doppelt sichtbaren Titel (Overlay-Header + App) zu vermeiden */}
+      {productMaterial && (
+        <div style={{ margin: '4px 0 10px', minHeight: 24 }}>
+          <div style={{ fontSize: '0.9em', color: '#555' }}>Material: {productMaterial}</div>
+        </div>
+      )}
       {returnReady && returnUrl && (
         <div style={{ position: 'fixed', top: 8, right: 8, zIndex: 1000 }}>
           <button type="button" onClick={() => { try { window.location.href = returnUrl; } catch(_) {} }} style={{ padding: '6px 12px' }}>Zurück</button>
@@ -1228,10 +1291,10 @@ function App() {
                 placeholder="Code einfügen"
                 value={codeInput || ''}
                 onChange={e => setCodeInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { const v = String(codeInput || '').trim(); if (v && onLoadByCode) onLoadByCode(v); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { const v = String(codeInput || '').trim(); if (v) loadByCode(v); } }}
                 style={{ flex: 1, height: 32, background: '#f6fff6', border: '1px solid #0a0', borderRadius: 0, padding: '6px 8px' }}
               />
-              <button type="button" onClick={() => { const v = String(codeInput || '').trim(); if (v && onLoadByCode) onLoadByCode(v); }} style={{ background: 'var(--ui-bg)', height: 32 }}>Laden</button>
+              <button type="button" onClick={() => { const v = String(codeInput || '').trim(); if (v) loadByCode(v); }} style={{ background: 'var(--ui-bg)', height: 32 }}>Laden</button>
             </div>
           </div>
 
