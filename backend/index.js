@@ -1739,6 +1739,83 @@ async function handleSiblingsByHandle(req, res){
 }
 app.get('/api/siblings/by-handle', handleSiblingsByHandle);
 
+// Re-added: Resolve siblings by group value (custom.designname) with diagnostics
+async function handleSiblingsProxy(req, res){
+  try {
+    const groupRaw = String(req.query.group||'').trim();
+    if(!groupRaw) return res.status(400).json({ ok:false, error:'missing_group' });
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit,10) || 12));
+    const cursor = req.query.cursor ? String(req.query.cursor) : null;
+    const shopDomain = req.query.shop ? `${normalizeShopName(req.query.shop)}.myshopify.com` : getShopFromReq(req);
+    const shopName = normalizeShopName(shopDomain);
+    const token = getStoredToken(shopName) || String(process.env.SHOPIFY_ACCESS_TOKEN||'').trim().replace(/^['"]|['"]$/g,'');
+    if(!token) return res.status(401).json({ ok:false, error:'missing_admin_token' });
+    const debugMode = String(req.query.debug||'').toLowerCase()==='1' || String(req.query.debug||'').toLowerCase()==='true';
+    const corrId = `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+    const want = groupRaw.toLowerCase();
+    const esc = s => String(s).replace(/"/g,'\\"');
+    const search = `metafield:${'custom'}.${'designname'}:"${esc(groupRaw)}"`;
+    const qSearch = `query($first:Int!, $after:String){ products(first:$first, after:$after, query:${JSON.stringify(search)}){ edges{ node{ id handle title vendor status totalInventory featuredImage{ url width height altText } images(first:6){ nodes{ url width height altText } } metafield(namespace:"custom", key:"designname"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
+    const qWide = `query($first:Int!, $after:String){ products(first:$first, after:$after){ edges{ node{ id handle title vendor status totalInventory featuredImage{ url width height altText } images(first:6){ nodes{ url width height altText } } metafield(namespace:"custom", key:"designname"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
+    const client = new Shopify({ shopName, accessToken: token });
+    const norm = s => (s||'').toString().toLowerCase();
+    let after = cursor || null; let pages=0; const maxPages=6; let items=[]; let hasNext=false; let endCursor=null; let wideUsed=false;
+    const diagnostics = debugMode ? { correlationId: corrId, groupRaw, search, pages: [] } : null;
+    while(items.length < limit && pages < maxPages){
+      pages++;
+      let raw, result;
+      try {
+        raw = await client.graphql(qSearch,{ first: Math.min(50, limit - items.length || limit), after });
+        result = typeof raw==='string' ? JSON.parse(raw) : raw;
+        if(result && result.errors) throw new Error('gql_errors');
+      } catch(e){
+        wideUsed = true; // treat error as trigger for wide fallback
+      }
+      if(!wideUsed){
+        const prod = result?.data?.products || result?.products;
+        const edges = Array.isArray(prod?.edges)? prod.edges:[];
+        if(debugMode) diagnostics.pages.push({ page: pages, mode:'search', edges: edges.length, added:0, skipped:0 });
+        for(const ed of edges){
+          const n = ed?.node; if(!n) continue;
+          const mf = n.metafield && n.metafield.value ? String(n.metafield.value) : '';
+          if(norm(mf)!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
+          const available = (typeof n.totalInventory==='number'? n.totalInventory>0 : true) && String(n.status||'').toUpperCase()!=='ARCHIVED';
+          items.push({ handle:n.handle, title:n.title, vendor:n.vendor, availableForSale: available, featuredImage:n.featuredImage||null, images:n.images||null });
+          if(debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
+          if(items.length>=limit) break;
+        }
+        hasNext = !!prod?.pageInfo?.hasNextPage; endCursor = prod?.pageInfo?.endCursor || null; after = endCursor;
+        if(edges.length===0) wideUsed = true; // empty search result triggers wide scan
+      }
+      if(wideUsed && items.length < limit){
+        let raw2 = await client.graphql(qWide,{ first: Math.min(50, limit - items.length + 8), after });
+        let result2 = typeof raw2==='string' ? JSON.parse(raw2) : raw2;
+        const prod2 = result2?.data?.products || result2?.products;
+        const edges2 = Array.isArray(prod2?.edges)? prod2.edges:[];
+        if(debugMode) diagnostics.pages.push({ page: pages, mode:'wide', edges: edges2.length, added:0, skipped:0 });
+        for(const ed2 of edges2){
+          const n2 = ed2?.node; if(!n2) continue;
+          const mf2 = n2.metafield && n2.metafield.value ? String(n2.metafield.value) : '';
+          if(norm(mf2)!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
+          const available2 = (typeof n2.totalInventory==='number'? n2.totalInventory>0 : true) && String(n2.status||'').toUpperCase()!=='ARCHIVED';
+          items.push({ handle:n2.handle, title:n2.title, vendor:n2.vendor, availableForSale: available2, featuredImage:n2.featuredImage||null, images:n2.images||null });
+          if(debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
+          if(items.length>=limit) break;
+        }
+        hasNext = !!prod2?.pageInfo?.hasNextPage; endCursor = prod2?.pageInfo?.endCursor || null; after = endCursor;
+        break; // single wide pass sufficient
+      }
+      if(!hasNext) break;
+    }
+    const payload = { ok:true, items, pageInfo:{ hasNextPage: hasNext, endCursor } };
+    if(debugMode) payload.diagnostics = diagnostics;
+    return res.json(payload);
+  } catch(e){
+    return res.status(500).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) });
+  }
+}
+app.get('/api/siblings', handleSiblingsProxy);
+
 // Minimal HMAC validator
 function validHmac(query) {
   const { hmac, ...rest } = query;
