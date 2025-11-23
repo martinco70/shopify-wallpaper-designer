@@ -1470,6 +1470,8 @@ async function handleSiblingsProxy(req, res) {
     const shopName = normalizeShopName(shopDomain);
     const token = getStoredToken(shopName) || String(process.env.SHOPIFY_ACCESS_TOKEN || '').trim().replace(/^['"]|['"]/g, '');
     if (!token) return res.status(401).json({ ok:false, error:'missing_admin_token' });
+    const debugMode = req.query.debug === '1';
+    const corrId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
     const key = cacheKeySiblings({ shop: shopName, group: groupRaw, limit, cursor });
     const cached = getCachedSiblings(key);
@@ -1492,6 +1494,7 @@ async function handleSiblingsProxy(req, res) {
     let pages = 0;
     const maxPages = 10; // safety cap
     let useWideFallback = false;
+    const diagnostics = debugMode ? { correlationId: corrId, searchString: search, pages: [], final: null } : null;
 
     while (items.length < limit && pages < maxPages) {
       pages++;
@@ -1619,18 +1622,23 @@ async function handleMaterialsProxy(req, res){
     for (const e of edges){
       const n = e?.node; if(!n) continue;
       if (filterMode === 'group'){
-        const gval = n?.metafield?.value || n?.metafield?.value; // placeholder; corrected below
+        return res.status(500).json({ ok:false, error:'invalid_response', debug: { hasData: !!result?.data, keys: result ? Object.keys(result) : null, correlationId: corrId } });
       }
       // Filter by mode
+      if (debugMode) {
+        const pageDiag = { page: pages, mode: useWideFallback ? 'wide' : 'search', edgesTotal: edges.length, added: 0, skippedMetafield: 0, skippedOther: 0, endCursor: prod.pageInfo?.endCursor || null };
+        diagnostics.pages.push(pageDiag);
+      }
       if (filterMode === 'group'){
         const gf = (n.metafield && n.metafield.value) ? String(n.metafield.value) : '';
         // Because we selected the artikelgruppierung metafield above, but both metafield() calls exist; pick the right one:
         const grp = (n.metafield && n.metafield.value && n.metafield.__key === 'artikelgruppierung') ? n.metafield.value : (n.metafield && n.metafield.value);
-      }
+        if (norm(mf) !== want) { if (debugMode) diagnostics.pages[diagnostics.pages.length-1].skippedMetafield++; continue; }
       // Unified filter implementation
       if (filterMode === 'group'){
         const groupField = n?.artikel && n.artikel.value ? String(n.artikel.value) : '';
         if (normStr(groupField) !== wantGroup) continue;
+        if (debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
         if (dbg) dbg.keptByGroup++;
         if (rawVendor && normStr(n.vendor) !== wantVendor) continue;
         if (dbg) dbg.keptByVendor++;
@@ -1650,6 +1658,10 @@ async function handleMaterialsProxy(req, res){
       if (!mat) continue;
       if (dbg) dbg.withMaterial++;
       const key2 = filterMode==='group' ? `${normStr(mat)}` : `${normStr(n.title)}|${normStr(mat)}`;
+        if (debugMode) {
+          const pageDiag = { page: pages, mode: 'wide', edgesTotal: edges2.length, added: 0, skippedMetafield: 0, endCursor: prod2?.pageInfo?.endCursor || null };
+          diagnostics.pages.push(pageDiag);
+        }
       if (seen.has(key2)) continue; seen.add(key2);
       const nodes = n.images && n.images.nodes ? n.images.nodes : [];
       const image2 = nodes && nodes.length>1 ? nodes[1] : (nodes[0] || null);
@@ -1658,6 +1670,7 @@ async function handleMaterialsProxy(req, res){
     }
 
     // Debug-only: if nothing found with vendor, check count without vendor filtering
+          if (debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
     if (debugMode && out.length < 2 && rawVendor && wantGroup){
       let noVendorCount = 0; const seen2 = new Set();
       for (const e of edges){
@@ -1670,7 +1683,11 @@ async function handleMaterialsProxy(req, res){
           for (const o of n.options){ if(o && /material/i.test(String(o.name||'')) && Array.isArray(o.values) && o.values.length){ mat = String(o.values[0]||'').trim(); if(mat) break; } }
         }
         if (!mat && Array.isArray(n.tags)){
-          const t = n.tags.find(t => /^material:/i.test(String(t||'')));
+    if (debugMode) {
+      diagnostics.final = { itemsReturned: items.length, hasNext: hasNextOut, endCursor: endCursorOut };
+      payload.diagnostics = diagnostics;
+    }
+    return res.json(payload);
           if (t){ mat = String(t.split(':').slice(1).join(':')).trim(); }
         }
         if (!mat) continue;
