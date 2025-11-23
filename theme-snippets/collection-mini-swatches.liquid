@@ -13,7 +13,12 @@ Voraussetzung: Produkt-Metafeld custom.designname (Text) ist gesetzt
   {%- assign group_raw = product.metafields[ns][key] -%}
   {%- assign group_code = group_raw.value | default: group_raw -%}
   {%- comment %}Zusätzliche Normalisierung: Alle Leerzeichen entfernen für stabile Gruppenkeys{%- endcomment -%}
-  {%- assign group_code = group_code | strip | replace: ' ', '' -%}
+  {%- assign group_code = group_code | strip
+    | replace: ' ', ''
+    | replace: '\t', ''
+    | replace: '\n', ''
+    | replace: '\r', ''
+  -%}
 {%- endif -%}
 
 
