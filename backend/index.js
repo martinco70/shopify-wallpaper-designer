@@ -1760,7 +1760,8 @@ async function handleSiblingsProxy(req, res){
     const client = new Shopify({ shopName, accessToken: token });
     const norm = s => (s||'').toString().toLowerCase();
     let after = cursor || null; let pages=0; const maxPages=6; let items=[]; let hasNext=false; let endCursor=null; let wideUsed=false;
-    const diagnostics = debugMode ? { correlationId: corrId, groupRaw, search, pages: [] } : null;
+    const diagnostics = debugMode ? { correlationId: corrId, groupRaw, search, pages: [], encountered: [] } : null;
+    const seenEncountered = debugMode ? new Set() : null;
     while(items.length < limit && pages < maxPages){
       pages++;
       let raw, result;
@@ -1796,6 +1797,14 @@ async function handleSiblingsProxy(req, res){
         for(const ed2 of edges2){
           const n2 = ed2?.node; if(!n2) continue;
           const mf2 = n2.metafield && n2.metafield.value ? String(n2.metafield.value) : '';
+          if(debugMode && mf2){
+            const lower = mf2.toLowerCase();
+            if(!seenEncountered.has(lower)){
+              seenEncountered.add(lower);
+              const hex = mf2.split('').map(ch=>ch.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
+              diagnostics.encountered.push({ raw: mf2, lower, hex });
+            }
+          }
           if(norm(mf2)!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
           const available2 = (typeof n2.totalInventory==='number'? n2.totalInventory>0 : true) && String(n2.status||'').toUpperCase()!=='ARCHIVED';
           items.push({ handle:n2.handle, title:n2.title, vendor:n2.vendor, availableForSale: available2, featuredImage:n2.featuredImage||null, images:n2.images||null });
