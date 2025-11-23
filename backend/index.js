@@ -1474,7 +1474,7 @@ async function handleSiblingsProxy(req, res) {
     const corrId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
     const key = cacheKeySiblings({ shop: shopName, group: groupRaw, limit, cursor });
-    const cached = getCachedSiblings(key);
+    const cached = !debugMode ? getCachedSiblings(key) : null;
     if (cached) return res.json({ ok:true, cached:true, ...cached });
 
     // Admin GraphQL query: products with metafield value equals groupRaw
@@ -1544,7 +1544,7 @@ async function handleSiblingsProxy(req, res) {
 
     const pageInfo = { hasNextPage: hasNextOut, endCursor: endCursorOut };
     const payload = { ok:true, items, pageInfo };
-    setCachedSiblings(key, payload, 60_000);
+    if (!debugMode) setCachedSiblings(key, payload, 60_000);
     return res.json(payload);
   } catch (e) {
     return res.status(500).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) });
