@@ -21,7 +21,18 @@
       Promise.resolve().then(item.fn).then(function(res){ item.resolve(res); }).catch(function(err){ item.resolve(Promise.reject(err)); }).finally(function(){ sched.running--; sched.last = Date.now(); tick(); });
     }, wait);
   }
-  function norm(s){ try{ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }catch(_){ return String(s||'').toLowerCase(); } }
+  // Normalisierung erweitert: entfernt sämtliche Whitespace-Zeichen zusätzlich zu Diakritika
+  function norm(s){
+    try{
+      return String(s||'')
+        .toLowerCase()
+        .replace(/\s+/g,'') // remove all whitespace
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'');
+    }catch(_){
+      return String(s||'').toLowerCase().replace(/\s+/g,'');
+    }
+  }
   function ready(fn){ if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', fn); } else { fn(); } }
   function pick(list, n){ var out=[]; for(var i=0;i<list.length && out.length<n;i++){ out.push(list[i]); } return out; }
   function uniqItems(list){
