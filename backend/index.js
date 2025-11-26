@@ -1429,131 +1429,21 @@ function clientFor(req) {
   throw new Error('missing_shop_token');
 }
 
-// --- Public Siblings Proxy (Plan B): query by metafield custom.designname via Admin GraphQL ---
-// Contract:
-// GET /public/siblings?group=<string>&limit=12&cursor=<endCursor>
-// Optional: shop=<domain or name>
-// Returns: { ok, items:[{handle,title,vendor,availableForSale,featuredImage}], pageInfo:{ hasNextPage, endCursor } }
-// Safeguards: simple rate limit, tiny in-memory cache (60s), max limit 50
+// Rate-Limiter & Cache (weiterhin für spätere Optimierungen genutzt)
 const siblingsCache = new Map(); // key -> { expires, value }
-function cacheKeySiblings({ shop, group, limit, cursor }){
-  return `${shop}::${group}::${limit}::${cursor||''}`;
-}
+function cacheKeySiblings({ shop, group, limit, cursor }){ return `${shop}::${group}::${limit}::${cursor||''}`; }
 function getCachedSiblings(key){ try{ const e = siblingsCache.get(key); if(e && e.expires > Date.now()) return e.value; }catch(_){} return null; }
 function setCachedSiblings(key, val, ttlMs){ try{ siblingsCache.set(key, { expires: Date.now() + (ttlMs||60_000), value: val }); }catch(_){} }
-
-// very simple per-IP rate limiter for this route
-const siblingsRate = new Map(); // ip -> { count, reset }
-function limitSiblings(req, res){
+const siblingsRate = new Map();
+function limitSiblings(req,res){
   const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-  const now = Date.now();
-  let b = siblingsRate.get(ip);
-  if(!b || now >= b.reset){ b = { count: 0, reset: now + 10_000 }; } // 10s window
-  b.count++;
-  siblingsRate.set(ip, b);
-  if (b.count > 30) { // 3 req/s avg
-    res.setHeader('Retry-After', '10');
-    res.status(429).json({ ok:false, error:'rate_limited' });
-    return true;
-  }
+  const now = Date.now(); let b = siblingsRate.get(ip);
+  if(!b || now >= b.reset){ b = { count:0, reset: now + 10_000 }; }
+  b.count++; siblingsRate.set(ip,b);
+  if(b.count > 30){ res.setHeader('Retry-After','10'); res.status(429).json({ ok:false, error:'rate_limited' }); return true; }
   return false;
 }
-
-async function handleSiblingsProxy(req, res) {
-  try {
-    if (limitSiblings(req, res)) return; // rate limited
-    const groupRaw = String(req.query.group || '').trim();
-    if (!groupRaw) return res.status(400).json({ ok:false, error:'missing_group' });
-    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit, 10) || 12));
-    const cursor = req.query.cursor ? String(req.query.cursor) : null;
-    const shopDomain = req.query.shop ? `${normalizeShopName(req.query.shop)}.myshopify.com` : getShopFromReq(req);
-    const shopName = normalizeShopName(shopDomain);
-    const token = getStoredToken(shopName) || String(process.env.SHOPIFY_ACCESS_TOKEN || '').trim().replace(/^['"]|['"]/g, '');
-    if (!token) return res.status(401).json({ ok:false, error:'missing_admin_token' });
-    const debugMode = req.query.debug === '1';
-    const corrId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-
-    const key = cacheKeySiblings({ shop: shopName, group: groupRaw, limit, cursor });
-    const cached = !debugMode ? getCachedSiblings(key) : null;
-    if (cached) return res.json({ ok:true, cached:true, ...cached });
-
-    // Admin GraphQL query: products with metafield value equals groupRaw
-    const client = new Shopify({ shopName, accessToken: token });
-    const escaped = groupRaw.replace(/["\\]/g, '\\$&');
-  // Entferne unnötige Escapes in Template-Literals (ESLint no-useless-escape)
-  const search = `metafield:${'custom'}.${'designname'}:"${escaped}"`;
-  const qSearch = `query($first:Int!,$after:String){ products(first:$first, after:$after, query:${JSON.stringify(search)}){ edges{ node{ id handle title vendor status totalInventory featuredImage{ url width height altText } images(first:6){ nodes{ url width height altText } } metafield(namespace:"custom", key:"designname"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
-  const qWide = `query($first:Int!,$after:String){ products(first:$first, after:$after){ edges{ node{ id handle title vendor status totalInventory featuredImage{ url width height altText } images(first:6){ nodes{ url width height altText } } metafield(namespace:"custom", key:"designname"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
-
-    const want = String(groupRaw).toLowerCase();
-    const norm = (s) => (s||'').toString().toLowerCase();
-    let items = [];
-    let endCursorOut = cursor || null;
-    let hasNextOut = false;
-    let after = cursor || null;
-    let pages = 0;
-    const maxPages = 10; // safety cap
-    let useWideFallback = false;
-    const diagnostics = debugMode ? { correlationId: corrId, searchString: search, pages: [], final: null } : null;
-
-    while (items.length < limit && pages < maxPages) {
-      pages++;
-      let raw, result;
-      try {
-        const first = Math.min(50, Math.max(1, limit - items.length));
-        raw = await client.graphql(qSearch, { first, after });
-        result = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (result && result.errors) throw new Error('gql_errors');
-      } catch (e) {
-        useWideFallback = true;
-      }
-
-      if (useWideFallback) {
-        try {
-          const first = Math.min(50, Math.max(1, limit - items.length + 8));
-          const raw2 = await client.graphql(qWide, { first, after });
-          result = typeof raw2 === 'string' ? JSON.parse(raw2) : raw2;
-          if (result && result.errors) return res.status(502).json({ ok:false, error:'gql_errors', errors: result.errors });
-        } catch (e2) {
-          const msg = e2?.message || 'graphql_failed';
-          return res.status(502).json({ ok:false, error:'proxy_failed', details: msg });
-        }
-      }
-
-      const prod = result?.data?.products || result?.products;
-      if (!prod) {
-        return res.status(500).json({ ok:false, error:'invalid_response', debug: { hasData: !!result?.data, keys: result ? Object.keys(result) : null } });
-      }
-      const edges = Array.isArray(prod.edges) ? prod.edges : [];
-      for (const e of edges){
-        const n = e?.node; if (!n) continue;
-        const mf = n.metafield && n.metafield.value ? String(n.metafield.value) : '';
-        // Immer strikt auf exakten Gruppenwert filtern (auch wenn qSearch benutzt wurde)
-        if (norm(mf) !== want) continue;
-        const available = (typeof n.totalInventory === 'number' ? n.totalInventory > 0 : true) && String(n.status || '').toUpperCase() !== 'ARCHIVED';
-        const nodes = n.images && n.images.nodes ? n.images.nodes : [];
-        const image2 = nodes && nodes.length>1 ? nodes[1] : (nodes[0] || null);
-        items.push({ handle: n.handle, title: n.title, vendor: n.vendor, availableForSale: available, featuredImage: n.featuredImage || null, images: n.images || null, image2 });
-        if (items.length >= limit) break;
-      }
-      hasNextOut = !!prod.pageInfo?.hasNextPage;
-      endCursorOut = prod.pageInfo?.endCursor || null;
-      if (!hasNextOut || items.length >= limit) break;
-      after = endCursorOut;
-    }
-
-    const pageInfo = { hasNextPage: hasNextOut, endCursor: endCursorOut };
-    const payload = { ok:true, items, pageInfo };
-    if (!debugMode) setCachedSiblings(key, payload, 60_000);
-    return res.json(payload);
-  } catch (e) {
-    return res.status(500).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) });
-  }
-}
-// Register under multiple public paths so Nginx/static mappings don't shadow it
-app.get('/public/siblings', handleSiblingsProxy);
-app.get('/api/siblings', handleSiblingsProxy);
-app.get('/designer/siblings', handleSiblingsProxy);
+// Hinweis: Frühere Implementierung von handleSiblingsProxy entfernt (artikelgruppierung-Fallback war fachlich falsch)
 
 // === Materials proxy: list material variants for a product group (custom.artikelgruppierung)
 // Contract (preferred): GET /api/materials?group=...&shop=...[&vendor=...]
@@ -1565,7 +1455,6 @@ const materialsCache = new Map(); // key -> { expires, value }
 const materialsRate = new Map(); // ip -> { count, reset }
 function normStr(s){ try{ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }catch(_){ return String(s||'').toLowerCase(); } }
 function cacheKeyMaterials({ shop, title, vendor, limit, group }){ return `${shop}::${group||''}::${title||''}::${vendor||''}::${limit}`; }
-function getCachedMaterials(key){ try{ const e = materialsCache.get(key); if(e && e.expires > Date.now()) return e.value; }catch(_){} return null; }
 function setCachedMaterials(key, val, ttlMs){ try{ materialsCache.set(key, { expires: Date.now() + (ttlMs||60_000), value: val }); }catch(_){} }
 function limitMaterials(req, res){
   const ip = req.ip || req.connection?.remoteAddress || 'unknown';
@@ -1579,112 +1468,89 @@ function limitMaterials(req, res){
 async function handleMaterialsProxy(req, res){
   try{
     if (limitMaterials(req, res)) return;
-  const rawGroup = String(req.query.group || req.query.artikelgruppierung || '').trim();
-  const rawTitle = String(req.query.title || '').trim();
-  const rawVendor = String(req.query.vendor || '').trim();
-  if (!rawGroup && (!rawTitle || !rawVendor)) return res.status(400).json({ ok:false, error:'missing_params', require:['group'] , fallback:['title','vendor'] });
+    const rawGroup = String(req.query.group || req.query.artikelgruppierung || '').trim();
+    const rawTitle = String(req.query.title || '').trim();
+    const rawVendor = String(req.query.vendor || '').trim();
+    if (!rawGroup && (!rawTitle || !rawVendor)) return res.status(400).json({ ok:false, error:'missing_params', require:['group'] , fallback:['title','vendor'] });
     const limit = Math.max(1, Math.min(8, parseInt(req.query.limit, 10) || 8));
     const shopDomain = req.query.shop ? `${normalizeShopName(req.query.shop)}.myshopify.com` : getShopFromReq(req);
     const shopName = normalizeShopName(shopDomain);
     const token = getStoredToken(shopName) || String(process.env.SHOPIFY_ACCESS_TOKEN || '').trim().replace(/^['"]|['"]$/g, '');
     if (!token) return res.status(401).json({ ok:false, error:'missing_admin_token' });
-
-  const key = cacheKeyMaterials({ shop: shopName, group: rawGroup, title: rawTitle, vendor: rawVendor, limit });
+    const key = cacheKeyMaterials({ shop: shopName, group: rawGroup, title: rawTitle, vendor: rawVendor, limit });
     const cached = getCachedMaterials(key); if(cached) return res.json({ ok:true, cached:true, ...cached });
-
     const client = new Shopify({ shopName, accessToken: token });
-    // Build Admin search query
     const esc = (s) => String(s).replace(/["\\]/g,'\\$&');
     let search, filterMode;
     if (rawGroup) {
       const mf = `metafield:${'custom'}.${'artikelgruppierung'}:"${esc(rawGroup)}"`;
-      // Important: do NOT include vendor in search to avoid mismatches due to accents/whitespace; filter vendor after fetch.
-      search = mf;
-      filterMode = 'group';
+      search = mf; filterMode = 'group';
     } else {
-      search = `title:"${esc(rawTitle)}" AND vendor:"${esc(rawVendor)}"`;
-      filterMode = 'title_vendor';
+      search = `title:"${esc(rawTitle)}" AND vendor:"${esc(rawVendor)}"`; filterMode = 'title_vendor';
     }
-  const q = `query($first:Int!){ products(first:$first, query:${JSON.stringify(search)}){ edges{ node{ id handle title vendor status totalInventory tags options{ name values } featuredImage{ url width height altText } images(first:2){ nodes{ url width height altText } } material: metafield(namespace:"custom", key:"material"){ value } artikel: metafield(namespace:"custom", key:"artikelgruppierung"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
-
+    const q = `query($first:Int!){ products(first:$first, query:${JSON.stringify(search)}){ edges{ node{ id handle title vendor status totalInventory tags options{ name values } featuredImage{ url width height altText } images(first:2){ nodes{ url width height altText } } material: metafield(namespace:"custom", key:"material"){ value } artikel: metafield(namespace:"custom", key:"artikelgruppierung"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
     let result;
-    try{
+    try {
       const raw = await client.graphql(q, { first: Math.min(50, limit + 16) });
       result = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if(result && result.errors) return res.status(502).json({ ok:false, error:'gql_errors', errors: result.errors });
-    }catch(e){ return res.status(502).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) }); }
-
-  const edges = Array.isArray(result?.data?.products?.edges) ? result.data.products.edges : [];
-  const debugMode = String(req.query.debug||'').toLowerCase() === '1' || String(req.query.debug||'').toLowerCase() === 'true';
+    } catch(e){ return res.status(502).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) }); }
+    const edges = Array.isArray(result?.data?.products?.edges) ? result.data.products.edges : [];
+    const debugMode = ['1','true'].includes(String(req.query.debug||'').toLowerCase());
     const wantTitle = normStr(rawTitle); const wantVendor = normStr(rawVendor); const wantGroup = normStr(rawGroup);
     const out = []; const seen = new Set();
     let dbg = debugMode ? { search, filterMode, wantGroup, wantVendor, fetched: edges.length, keptByGroup:0, keptByVendor:0, withMaterial:0, withoutVendorCount:0 } : null;
-    for (const e of edges){
+    for(const e of edges){
       const n = e?.node; if(!n) continue;
-      // Unified filter implementation
-      if (filterMode === 'group'){
+      if(filterMode==='group'){
         const groupField = n?.artikel && n.artikel.value ? String(n.artikel.value) : '';
         if (normStr(groupField) !== wantGroup) continue;
         if (dbg) dbg.keptByGroup++;
         if (rawVendor && normStr(n.vendor) !== wantVendor) continue;
         if (dbg) dbg.keptByVendor++;
       } else {
-        if (normStr(n.title) !== wantTitle) continue;
-        if (normStr(n.vendor) !== wantVendor) continue;
+        if(normStr(n.title) !== wantTitle) continue;
+        if(normStr(n.vendor) !== wantVendor) continue;
       }
-      if (String(n.title||'').toLowerCase().includes('muster')) continue;
+      if(String(n.title||'').toLowerCase().includes('muster')) continue;
       let mat = n.material && n.material.value ? String(n.material.value).trim() : '';
-      if (!mat && Array.isArray(n.options)){
-        for (const o of n.options){ if(o && /material/i.test(String(o.name||'')) && Array.isArray(o.values) && o.values.length){ mat = String(o.values[0]||'').trim(); if(mat) break; } }
+      if(!mat && Array.isArray(n.options)){
+        for(const o of n.options){ if(o && /material/i.test(String(o.name||'')) && Array.isArray(o.values) && o.values.length){ mat = String(o.values[0]||'').trim(); if(mat) break; } }
       }
-      if (!mat && Array.isArray(n.tags)){
-        const t = n.tags.find(t => /^material:/i.test(String(t||'')));
-        if (t){ mat = String(t.split(':').slice(1).join(':')).trim(); }
+      if(!mat && Array.isArray(n.tags)){
+        const t = n.tags.find(t => /^material:/i.test(String(t||''))); if(t){ mat = String(t.split(':').slice(1).join(':')).trim(); }
       }
-      if (!mat) continue;
-      if (dbg) dbg.withMaterial++;
+      if(!mat) continue; if(dbg) dbg.withMaterial++;
       const key2 = filterMode==='group' ? `${normStr(mat)}` : `${normStr(n.title)}|${normStr(mat)}`;
-      if (seen.has(key2)) continue; seen.add(key2);
-      const nodes = n.images && n.images.nodes ? n.images.nodes : [];
-      const image2 = nodes && nodes.length>1 ? nodes[1] : (nodes[0] || null);
-      out.push({ handle: n.handle, title: n.title, vendor: n.vendor, material: mat, featuredImage: n.featuredImage || null, image2 });
-      if (out.length >= limit) break;
+      if(seen.has(key2)) continue; seen.add(key2);
+      const nodes = n.images && n.images.nodes ? n.images.nodes : []; const image2 = nodes && nodes.length>1 ? nodes[1] : (nodes[0] || null);
+      out.push({ handle:n.handle, title:n.title, vendor:n.vendor, material: mat, featuredImage:n.featuredImage||null, image2 });
+      if(out.length >= limit) break;
     }
-
-    // Debug-only: if nothing found with vendor, check count without vendor filtering
-    if (debugMode && out.length < 2 && rawVendor && wantGroup){
-      let noVendorCount = 0; const seen2 = new Set();
-      for (const e of edges){
-        const n = e?.node; if(!n) continue;
-        const groupField = n?.artikel && n.artikel.value ? String(n.artikel.value) : '';
-        if (normStr(groupField) !== wantGroup) continue;
-        if (String(n.title||'').toLowerCase().includes('muster')) continue;
-        let mat = n.material && n.material.value ? String(n.material.value).trim() : '';
-        if (!mat && Array.isArray(n.options)){
-          for (const o of n.options){ if(o && /material/i.test(String(o.name||'')) && Array.isArray(o.values) && o.values.length){ mat = String(o.values[0]||'').trim(); if(mat) break; } }
+    if(debugMode && out.length < 2 && rawVendor && wantGroup){
+      let noVendorCount=0; const seen2=new Set();
+      for(const e of edges){
+        const n=e?.node; if(!n) continue;
+        const groupField=n?.artikel && n.artikel.value ? String(n.artikel.value) : '';
+        if(normStr(groupField)!==wantGroup) continue;
+        if(String(n.title||'').toLowerCase().includes('muster')) continue;
+        let mat=n.material && n.material.value ? String(n.material.value).trim() : '';
+        if(!mat && Array.isArray(n.options)){
+          for(const o of n.options){ if(o && /material/i.test(String(o.name||'')) && Array.isArray(o.values) && o.values.length){ mat = String(o.values[0]||'').trim(); if(mat) break; } }
         }
-        if (!mat && Array.isArray(n.tags)){
-          const t = n.tags.find(t => /^material:/i.test(String(t||'')));
-          if (t){ mat = String(t.split(':').slice(1).join(':')).trim(); }
+        if(!mat && Array.isArray(n.tags)){
+          const t=n.tags.find(t => /^material:/i.test(String(t||''))); if(t){ mat = String(t.split(':').slice(1).join(':')).trim(); }
         }
-        if (!mat) continue;
-        const k = normStr(mat); if (seen2.has(k)) continue; seen2.add(k);
-        noVendorCount++;
+        if(!mat) continue; const k=normStr(mat); if(seen2.has(k)) continue; seen2.add(k); noVendorCount++;
       }
-      if (dbg) dbg.withoutVendorCount = noVendorCount;
+      if(dbg) dbg.withoutVendorCount = noVendorCount;
     }
-
-    // Sort by preference list then A–Z
-    const pref = ['vlies','vinyl','textil','papier'];
-    const rank = (m) => { const i = pref.indexOf(normStr(m)); return i === -1 ? 100 : i; };
-    out.sort((a,b)=>{ const ra=rank(a.material), rb=rank(b.material); if(ra!==rb) return ra-rb; return String(a.material).localeCompare(String(b.material), 'de'); });
-
-  const payload = debugMode ? { ok:true, items: out, count: out.length, debug: dbg } : { ok:true, items: out, count: out.length };
+    const pref=['vlies','vinyl','textil','papier']; const rank=m => { const i=pref.indexOf(normStr(m)); return i===-1?100:i; };
+    out.sort((a,b)=>{ const ra=rank(a.material), rb=rank(b.material); if(ra!==rb) return ra-rb; return String(a.material).localeCompare(String(b.material),'de'); });
+    const payload = debugMode ? { ok:true, items: out, count: out.length, debug: dbg } : { ok:true, items: out, count: out.length };
     setCachedMaterials(key, payload, 60_000);
     return res.json(payload);
-  }catch(e){
-    return res.status(500).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) });
-  }
+  } catch(e){ return res.status(500).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) }); }
 }
 // Note: Do not register another handler for '/api/materials' here to avoid conflicts with the primary implementation above.
 
@@ -1750,18 +1616,59 @@ async function handleSiblingsProxy(req, res){
     const shopName = normalizeShopName(shopDomain);
     const token = getStoredToken(shopName) || String(process.env.SHOPIFY_ACCESS_TOKEN||'').trim().replace(/^['"]|['"]$/g,'');
     if(!token) return res.status(401).json({ ok:false, error:'missing_admin_token' });
-    const debugMode = String(req.query.debug||'').toLowerCase()==='1' || String(req.query.debug||'').toLowerCase()==='true';
+    const debugMode = ['1','true'].includes(String(req.query.debug||'').toLowerCase());
+    const scanRequested = ['1','true'].includes(String(req.query.scan||'').toLowerCase());
     const corrId = `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-    const want = groupRaw.toLowerCase();
+    // Optional: digits mapping param e.g. digitmap=0a or digitmap=1a
+    const digitMapMode = String(req.query.digitmap||'').toLowerCase();
+    const makeDigitMapper = () => {
+      if(digitMapMode === '0a'){
+        // 0->A,1->B,...,9->J
+        const map = ['a','b','c','d','e','f','g','h','i','j'];
+        return ch => (ch >= '0' && ch <= '9') ? map[ch.charCodeAt(0)-48] : ch;
+      }
+      if(digitMapMode === '1a'){
+        // 1->A,2->B,...,9->I,0->J
+        const map = { '0':'j','1':'a','2':'b','3':'c','4':'d','5':'e','6':'f','7':'g','8':'h','9':'i' };
+        return ch => map[ch] || ch;
+      }
+      return ch => ch; // no mapping
+    };
+    const mapDigit = makeDigitMapper();
+    // Normalisierung (wie Frontend): lowercase + remove whitespace + strip diacritics + optional digit map
+    const normalizeFull = (s) => {
+      try {
+        let out = String(s||'')
+          .toLowerCase()
+          .replace(/\s+/g,'')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g,'');
+        if(digitMapMode){
+          out = out.split('').map(mapDigit).join('');
+        }
+        return out;
+      } catch(_) {
+        let out = String(s||'').toLowerCase().replace(/\s+/g,'');
+        if(digitMapMode){ out = out.split('').map(mapDigit).join(''); }
+        return out;
+      }
+    };
+    const want = normalizeFull(groupRaw);
     const esc = s => String(s).replace(/"/g,'\\"');
+    // Primäre Suche weiterhin mit Raw (falls Metafeld exakt gespeichert ist)
     const search = `metafield:${'custom'}.${'designname'}:"${esc(groupRaw)}"`;
+    // Sekundäre (Fallback) Suche mit normalisiertem Wert (Whitespace entfernt) falls erste 0 Treffer liefert
+    const normalizedRaw = want; // bereits lower + whitespace-frei + diakritik-frei
+    const searchNormalized = groupRaw.toLowerCase().replace(/\s+/g,'') !== groupRaw.toLowerCase() ? `metafield:${'custom'}.${'designname'}:"${esc(normalizedRaw)}"` : null;
     const qSearch = `query($first:Int!, $after:String){ products(first:$first, after:$after, query:${JSON.stringify(search)}){ edges{ node{ id handle title vendor status totalInventory featuredImage{ url width height altText } images(first:6){ nodes{ url width height altText } } metafield(namespace:"custom", key:"designname"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
+    const qSearch2 = searchNormalized ? `query($first:Int!, $after:String){ products(first:$first, after:$after, query:${JSON.stringify(searchNormalized)}){ edges{ node{ id handle title vendor status totalInventory featuredImage{ url width height altText } images(first:6){ nodes{ url width height altText } } metafield(namespace:"custom", key:"designname"){ value } } } pageInfo{ hasNextPage endCursor } } }` : null;
     const qWide = `query($first:Int!, $after:String){ products(first:$first, after:$after){ edges{ node{ id handle title vendor status totalInventory featuredImage{ url width height altText } images(first:6){ nodes{ url width height altText } } metafield(namespace:"custom", key:"designname"){ value } } } pageInfo{ hasNextPage endCursor } } }`;
     const client = new Shopify({ shopName, accessToken: token });
-    const norm = s => (s||'').toString().toLowerCase();
+    const norm = (s) => normalizeFull(s);
     let after = cursor || null; let pages=0; const maxPages=6; let items=[]; let hasNext=false; let endCursor=null; let wideUsed=false;
-    const diagnostics = debugMode ? { correlationId: corrId, groupRaw, search, pages: [], encountered: [] } : null;
+    const diagnostics = debugMode ? { correlationId: corrId, groupRaw, search, searchNormalized: searchNormalized || null, keyUsed: null, pages: [], encountered: [], scan: null } : null;
     const seenEncountered = debugMode ? new Set() : null;
+    // 1. Primäre Suche
     while(items.length < limit && pages < maxPages){
       pages++;
       let raw, result;
@@ -1770,7 +1677,7 @@ async function handleSiblingsProxy(req, res){
         result = typeof raw==='string' ? JSON.parse(raw) : raw;
         if(result && result.errors) throw new Error('gql_errors');
       } catch(e){
-        wideUsed = true; // treat error as trigger for wide fallback
+        wideUsed = true; // Fehler -> Wide Fallback
       }
       if(!wideUsed){
         const prod = result?.data?.products || result?.products;
@@ -1779,14 +1686,84 @@ async function handleSiblingsProxy(req, res){
         for(const ed of edges){
           const n = ed?.node; if(!n) continue;
           const mf = n.metafield && n.metafield.value ? String(n.metafield.value) : '';
-          if(norm(mf)!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
+          const mfNorm = norm(mf);
+          if(mfNorm!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
           const available = (typeof n.totalInventory==='number'? n.totalInventory>0 : true) && String(n.status||'').toUpperCase()!=='ARCHIVED';
           items.push({ handle:n.handle, title:n.title, vendor:n.vendor, availableForSale: available, featuredImage:n.featuredImage||null, images:n.images||null });
           if(debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
           if(items.length>=limit) break;
         }
         hasNext = !!prod?.pageInfo?.hasNextPage; endCursor = prod?.pageInfo?.endCursor || null; after = endCursor;
-        if(edges.length===0) wideUsed = true; // empty search result triggers wide scan
+        if(edges.length>0 && debugMode && diagnostics.keyUsed==null){ diagnostics.keyUsed = 'designname'; }
+        if(edges.length===0 && items.length===0){
+          // Zweite Suchrunde mit normalisiertem Wert falls vorhanden
+          if(qSearch2){
+            let raw2, result2;
+            try {
+              raw2 = await client.graphql(qSearch2,{ first: Math.min(50, limit - items.length || limit), after: null });
+              result2 = typeof raw2==='string' ? JSON.parse(raw2) : raw2;
+            } catch(e){ /* ignore second search errors */ }
+            const prod2 = result2?.data?.products || result2?.products;
+            const edges2 = Array.isArray(prod2?.edges)? prod2.edges:[];
+            if(debugMode) diagnostics.pages.push({ page: pages, mode:'search-normalized', edges: edges2.length, added:0, skipped:0 });
+            for(const ed2 of edges2){
+              const n2 = ed2?.node; if(!n2) continue;
+              const mf2 = n2.metafield && n2.metafield.value ? String(n2.metafield.value) : '';
+              const mf2Norm = norm(mf2);
+              if(mf2Norm!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
+              const available2 = (typeof n2.totalInventory==='number'? n2.totalInventory>0 : true) && String(n2.status||'').toUpperCase()!=='ARCHIVED';
+              items.push({ handle:n2.handle, title:n2.title, vendor:n2.vendor, availableForSale: available2, featuredImage:n2.featuredImage||null, images:n2.images||null });
+              if(debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
+              if(items.length>=limit) break;
+            }
+            if(edges2.length>0 && debugMode && diagnostics.keyUsed==null){ diagnostics.keyUsed = 'designname-normalized'; }
+          }
+          // Deep Scan falls immer noch leer
+          if(items.length===0 && (scanRequested || (debugMode && scanRequested !== false))){
+            // Tiefenscan
+            const makeHex = v => v.split('').map(ch=>ch.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
+            const scanMaxPages = 40; let scanPages=0; let scanCursor=null; let matched=0, different=0, missing=0;
+            const sampleMissing=[], sampleDifferent=[];
+            while(scanPages < scanMaxPages && matched < limit){
+              scanPages++;
+              let rawScan = await client.graphql(qWide,{ first: Math.min(50, (limit - matched) + 25), after: scanCursor });
+              let resultScan = typeof rawScan==='string' ? JSON.parse(rawScan) : rawScan;
+              const prodScan = resultScan?.data?.products || resultScan?.products;
+              const edgesScan = Array.isArray(prodScan?.edges)? prodScan.edges:[];
+              if(debugMode) diagnostics.pages.push({ page: pages + scanPages - 1, mode:'scan', edges: edgesScan.length, added:0, skipped:0 });
+              for(const edS of edgesScan){
+                const nS = edS?.node; if(!nS) continue;
+                const mfRaw = nS.metafield && nS.metafield.value ? String(nS.metafield.value) : null;
+                if(mfRaw == null){
+                  missing++; if(sampleMissing.length<5) sampleMissing.push({ handle:nS.handle, title:nS.title });
+                  if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++;
+                  continue;
+                }
+                const mfNorm = norm(mfRaw);
+                if(mfNorm !== want){
+                  different++; if(sampleDifferent.length<5) sampleDifferent.push({ handle:nS.handle, raw: mfRaw, lower: mfNorm, hex: makeHex(mfRaw) });
+                  if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++;
+                  if(debugMode && !seenEncountered.has(mfNorm)){
+                    seenEncountered.add(mfNorm);
+                    diagnostics.encountered.push({ raw: mfRaw, lower: mfNorm, hex: makeHex(mfRaw) });
+                  }
+                  continue;
+                }
+                // Match
+                const availableS = (typeof nS.totalInventory==='number'? nS.totalInventory>0 : true) && String(nS.status||'').toUpperCase()!=='ARCHIVED';
+                items.push({ handle:nS.handle, title:nS.title, vendor:nS.vendor, availableForSale: availableS, featuredImage:nS.featuredImage||null, images:nS.images||null });
+                if(debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
+                matched++;
+                if(matched>=limit) break;
+              }
+              const hasNextScan = !!prodScan?.pageInfo?.hasNextPage; scanCursor = prodScan?.pageInfo?.endCursor || null;
+              if(!hasNextScan || matched>=limit) break;
+            }
+            if(debugMode){ diagnostics.keyUsed = matched>0 ? 'designname-scan' : (diagnostics.keyUsed||'none'); diagnostics.scan = { enabled:true, pages: scanPages, matched, different, missing, sampleMissing, sampleDifferent }; }
+            hasNext = false; endCursor = null; after = null; // Scan beendet
+            break; // Hauptschleife verlassen
+          }
+        }
       }
       if(wideUsed && items.length < limit){
         let raw2 = await client.graphql(qWide,{ first: Math.min(50, limit - items.length + 8), after });
@@ -1798,32 +1775,33 @@ async function handleSiblingsProxy(req, res){
           const n2 = ed2?.node; if(!n2) continue;
           const mf2 = n2.metafield && n2.metafield.value ? String(n2.metafield.value) : '';
           if(debugMode && mf2){
-            const lower = mf2.toLowerCase();
+            const lower = normalizeFull(mf2);
             if(!seenEncountered.has(lower)){
               seenEncountered.add(lower);
               const hex = mf2.split('').map(ch=>ch.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
               diagnostics.encountered.push({ raw: mf2, lower, hex });
             }
           }
-          if(norm(mf2)!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
+          const mf2Norm = norm(mf2);
+          if(mf2Norm!==want){ if(debugMode) diagnostics.pages[diagnostics.pages.length-1].skipped++; continue; }
           const available2 = (typeof n2.totalInventory==='number'? n2.totalInventory>0 : true) && String(n2.status||'').toUpperCase()!=='ARCHIVED';
           items.push({ handle:n2.handle, title:n2.title, vendor:n2.vendor, availableForSale: available2, featuredImage:n2.featuredImage||null, images:n2.images||null });
           if(debugMode) diagnostics.pages[diagnostics.pages.length-1].added++;
           if(items.length>=limit) break;
         }
         hasNext = !!prod2?.pageInfo?.hasNextPage; endCursor = prod2?.pageInfo?.endCursor || null; after = endCursor;
-        break; // single wide pass sufficient
+        break; // Single Wide Pass
       }
       if(!hasNext) break;
     }
     const payload = { ok:true, items, pageInfo:{ hasNextPage: hasNext, endCursor } };
-    if(debugMode) payload.diagnostics = diagnostics;
+    if(debugMode){ if(diagnostics.keyUsed==null) diagnostics.keyUsed = items.length>0 ? 'designname' : (diagnostics.scan ? 'none' : 'none'); payload.diagnostics = diagnostics; }
     return res.json(payload);
-  } catch(e){
-    return res.status(500).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) });
-  }
+  } catch(e){ return res.status(500).json({ ok:false, error:'proxy_failed', details: e?.message || String(e) }); }
 }
 app.get('/api/siblings', handleSiblingsProxy);
+app.get('/public/siblings', handleSiblingsProxy);
+app.get('/designer/siblings', handleSiblingsProxy);
 
 // Minimal HMAC validator
 function validHmac(query) {

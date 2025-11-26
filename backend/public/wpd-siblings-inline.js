@@ -2,7 +2,16 @@
   'use strict';
   try{ console.log('[siblings-inline asset] loaded'); }catch(_){ }
 
-  function norm(s){ try{ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }catch(_){ return String(s||'').toLowerCase(); } }
+  // Normalisierung erweitert: entfernt alle Whitespaces + Diakritika
+  function norm(s){
+    try{
+      return String(s||'')
+        .toLowerCase()
+        .replace(/\s+/g,'')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'');
+    }catch(_){ return String(s||'').toLowerCase().replace(/\s+/g,''); }
+  }
 
   function initOne(root){
     if(!root || root.__siblingsInlineInited) return;
@@ -16,6 +25,16 @@
     var codeRaw = root.getAttribute('data-group-code') || '';
     var code = codeRaw ? codeRaw.toLowerCase().replace(/_/g,'-') : '';
     var groupRaw = root.getAttribute('data-group-raw') || '';
+    var groupNorm = norm(groupRaw);
+    // Debug A: Hex-Dump
+    try {
+      var hexDump = Array.prototype.map.call(groupRaw, function(ch){
+        var cp = ch.codePointAt(0).toString(16).toUpperCase();
+        while(cp.length < 4) cp='0'+cp;
+        return 'U+'+cp;
+      }).join(' ');
+      console.log('[siblings-inline debug][A] groupRaw hexDump', { groupRaw, hexDump });
+    } catch(_){ }
     var token = root.getAttribute('data-sf-token') || '';
     var shop = root.getAttribute('data-shop-domain') || '';
     var initial = parseInt(root.getAttribute('data-initial-count')||'12',10);
@@ -42,9 +61,14 @@
     function setStatus(msg){ if(!statusEl) return; if(msg){ statusEl.textContent = msg; statusEl.hidden = false; } else { statusEl.hidden = true; } }
 
     // Early context
-    try{ var _tail = token ? String(token).slice(-6) : 'none'; console.log('[siblings-inline asset] init-early', { groupCode: code, groupRaw: groupRaw, endpoint: '/api/2024-07/graphql.json', tokenTail: _tail }); }catch(_){ }
+    try{ var _tail = token ? String(token).slice(-6) : 'none'; console.log('[siblings-inline asset] init-early', { groupCode: code, groupRaw: groupRaw, groupNorm: groupNorm, endpoint: '/api/2024-07/graphql.json', tokenTail: _tail }); }catch(_){ }
 
     if(!code && !(groupRaw && groupRaw.trim())){ setStatus('Kein Metafeld custom.designname am Produkt – keine Gruppenbildung möglich.'); return; }
+    // Debug D: handleize Abweichung
+    try {
+      var handleizedRaw = groupRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+      if(codeRaw && handleizedRaw && codeRaw !== handleizedRaw){ console.warn('[siblings-inline debug][D] handleize mismatch', { codeRaw, handleizedRaw, groupRaw }); }
+    } catch(_){ }
 
     var endpoint = '/api/2024-07/graphql.json';
     var page = 1; var mode = 'proxy';
@@ -62,10 +86,12 @@
     function renderCard(p){
       if(!p || !p.handle) return false;
       var handleKey = String(p.handle);
-      try{ var t0 = (p.title||''); if (String(t0).toLowerCase().indexOf('muster') !== -1) { return false; } }catch(_){ }
-      try{ var titleKey = norm(p.title||''); if(titleKey && seenTitles.has(titleKey)) return false; }catch(_){ }
-      if(seenHandles.has(handleKey)) return false;
-      try{ var tk = norm(p.title||''); if(tk){ seenTitles.add(tk); } }catch(_){ }
+      var titleVal = p.title || '';
+      var titleKey = (titleVal).trim().toLowerCase();
+      if(String(titleVal).toLowerCase().indexOf('muster') !== -1){ console.log('[siblings-inline debug][C] skip muster', { handle:p.handle, title:p.title }); return false; }
+      if(titleKey && seenTitles.has(titleKey)){ console.log('[siblings-inline debug][C] skip title-duplicate', { handle:p.handle, title:p.title, titleKey }); return false; }
+      if(seenHandles.has(handleKey)){ console.log('[siblings-inline debug][C] skip handle-duplicate', { handle:p.handle, title:p.title }); return false; }
+      if(titleKey){ seenTitles.add(titleKey); }
       seenHandles.add(handleKey);
       var a=document.createElement('a'); a.href='/products/'+p.handle; a.className='product-siblings__card';
       var imgUrl = null;
@@ -90,22 +116,22 @@
     }
 
     function loadNextProxy(count){
-      var val = (groupRaw && groupRaw.trim()) ? groupRaw.trim() : (code || '').trim();
+      var val = (groupRaw && groupRaw.trim()) ? groupNorm : norm(code||'');
       if(!val){ hasNext=false; return Promise.resolve(); }
       var proxy = root.getAttribute('data-proxy-url') || '/api/siblings';
       var sep = proxy.indexOf('?')>=0 ? '&' : '?';
       var url = proxy + sep + 'group=' + encodeURIComponent(val) + '&limit=' + encodeURIComponent(count);
       if(shop){ url += '&shop=' + encodeURIComponent(shop); }
       if(endCursor) url += '&cursor=' + encodeURIComponent(endCursor);
-      try{ console.log('[siblings-inline asset] proxy url', proxy); }catch(_){}
+      try{ console.log('[siblings-inline debug][B] fetch proxy', { raw:groupRaw, norm:groupNorm, chosen:val, encoded:encodeURIComponent(val), cursor:endCursor||null, url }); }catch(_){ }
       return fetch(url, { credentials:'omit' }).then(function(r){ if(!r.ok) throw new Error('proxy:'+r.status); return r.json(); }).then(function(res){
         var items = res && res.items || []; var matched=0; var fetched=items.length; var skipped=0;
         for(var i=0;i<items.length;i++){
           var n=items[i];
-          if(!n||!n.handle) { skipped++; continue;}
-          try{ if(n.title && String(n.title).toLowerCase().indexOf('muster')!==-1){ skipped++; continue; } }catch(_){ }
+          if(!n||!n.handle){ skipped++; console.log('[siblings-inline debug][C] skip missing handle', n); continue;}
+          if(n.title && String(n.title).toLowerCase().indexOf('muster')!==-1){ skipped++; console.log('[siblings-inline debug][C] skip muster (proxy loop)', { handle:n.handle, title:n.title }); continue; }
           var currentHandle = root.getAttribute('data-current-handle') || '';
-          if(currentHandle && n.handle===currentHandle){ skipped++; continue;}
+          if(currentHandle && n.handle===currentHandle){ skipped++; console.log('[siblings-inline debug][C] skip self-handle', { handle:n.handle }); continue;}
           var added = renderCard(n);
           if(added){ loaded++; matched++; } else { skipped++; }
         }
@@ -125,13 +151,13 @@
         var c = res && res.data && res.data.collection; var matched=0; var fetched=0; var skipped=0;
         if(!c || !c.products){ hasNext=false; return; }
         var edges = (c.products && c.products.edges) ? c.products.edges : []; fetched = edges.length;
-        var want = (groupRaw && groupRaw.trim()) ? String(groupRaw).toLowerCase().trim() : (code||'').toLowerCase().trim();
+        var want = (groupRaw && groupRaw.trim()) ? groupNorm : norm(code||'');
         for(var i=0;i<edges.length;i++){
-          var n = edges[i] && edges[i].node; if(!n) { skipped++; continue; }
-          try{ var mfv = (n.metafield && n.metafield.value) ? String(n.metafield.value).toLowerCase().trim() : ''; if(want && mfv && mfv !== want){ skipped++; continue; } }catch(_){ }
-          try{ if(n.title && String(n.title).toLowerCase().indexOf('muster')!==-1){ skipped++; continue; } }catch(_){ }
+          var n = edges[i] && edges[i].node; if(!n){ skipped++; console.log('[siblings-inline debug][C] skip missing node'); continue; }
+          try{ var mfv = (n.metafield && n.metafield.value) ? String(n.metafield.value).toLowerCase().trim() : ''; if(want && mfv && mfv !== want){ skipped++; console.log('[siblings-inline debug][C] skip metafield mismatch', { handle:n.handle, mfv, want }); continue; } }catch(_){ }
+          if(n.title && String(n.title).toLowerCase().indexOf('muster')!==-1){ skipped++; console.log('[siblings-inline debug][C] skip muster (sf loop)', { handle:n.handle, title:n.title }); continue; }
           var currentHandle = root.getAttribute('data-current-handle') || '';
-          if(currentHandle && n.handle===currentHandle){ skipped++; continue; }
+          if(currentHandle && n.handle===currentHandle){ skipped++; console.log('[siblings-inline debug][C] skip self-handle (sf loop)', { handle:n.handle }); continue; }
           var added = renderCard(n);
           if(added){ loaded++; matched++; } else { skipped++; }
         }
@@ -172,6 +198,7 @@
     var statusEl = root.querySelector('.product-siblings__status');
     var code = root.getAttribute('data-group-code') || '';
     var codeRaw = root.getAttribute('data-group-raw') || '';
+    var groupNorm = norm(codeRaw);
     var shop = root.getAttribute('data-shop-domain') || '';
     var initial = parseInt(root.getAttribute('data-initial-count')||'12',10);
     var batch = parseInt(root.getAttribute('data-batch-size')||'12',10);
@@ -206,7 +233,7 @@
     }
     var hasNext=true; var endCursor=null; var loaded=0; var page=1;
     function loadNextProxy(count){
-      var val = (codeRaw && codeRaw.trim()) ? codeRaw.trim() : (code || '').trim(); if(!val){ hasNext=false; return Promise.resolve(); }
+      var val = (codeRaw && codeRaw.trim()) ? groupNorm : norm(code||''); if(!val){ hasNext=false; return Promise.resolve(); }
       var proxy = root.getAttribute('data-proxy-url') || '/api/siblings';
       var sep = proxy.indexOf('?')>=0 ? '&' : '?'; var url = proxy + sep + 'group=' + encodeURIComponent(val) + '&limit=' + encodeURIComponent(count); if(shop){ url += '&shop=' + encodeURIComponent(shop); }
       try{ console.log('[siblings-inline asset] v2 proxy url', proxy); }catch(_){}

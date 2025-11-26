@@ -64,6 +64,11 @@
   }
   ,
   {
+    "from": "backend/public/wpd-siblings-sf.js",
+    "to": "assets/wpd-siblings-sf.js"
+  }
+  ,
+  {
     "from": "theme-sections/product-material-options-section.liquid",
     "to": "sections/product-material-options.liquid"
   }
