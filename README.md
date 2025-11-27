@@ -79,6 +79,22 @@ Unter `.vscode/tasks.json` stehen zusätzlich Tasks bereit:
 
 So kannst du Deploys erst beurteilen und erst anschließend bewusst freigeben.
 
+## Theme-Debugging: Siblings Logs
+
+- Die Geschwister-Section (`xtra-theme-shopify/sections/product-siblings.liquid`) schreibt nur Debug-Logs, wenn das Flag gesetzt ist.
+- Aktivieren: Im Browser-Console auf der Produktseite ausführen:
+
+```js
+window.__WPD_SIBLINGS_DEBUG = true; location.reload();
+```
+
+- Deaktivieren: Flag entfernen und neu laden:
+
+```js
+delete window.__WPD_SIBLINGS_DEBUG; location.reload();
+```
+
+- Hinweis: Die Logs sind reduziert und erscheinen nur, wenn das Flag aktiv ist (geringere Console-Noise im Live-Betrieb).
 ## CI
 
 [![CI](https://github.com/martinco70/shopify-wallpaper-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/martinco70/shopify-wallpaper-designer/actions/workflows/ci.yml)

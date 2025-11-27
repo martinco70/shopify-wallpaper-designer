@@ -19,22 +19,12 @@
     "from": "theme-sections/wpd-launcher-section.liquid",
     "to": "sections/wpd-launcher-section.liquid"
   },
-  {
-    "from": "theme-sections/product-siblings-v2.liquid",
-    "to": "sections/product-siblings-v2.liquid"
-  },
+  
   {
     "from": "theme-snippets/product-siblings-inline.liquid",
     "to": "snippets/product-siblings-inline.liquid"
   },
-  {
-    "from": "backend/public/wpd-siblings-probe.js",
-    "to": "assets/wpd-siblings-probe.js"
-  },
-  {
-    "from": "backend/public/wpd-siblings-v2.js",
-    "to": "assets/wpd-siblings-v2.js"
-  },
+  
   {
     "from": "theme-snippets/collection-mini-swatches.liquid",
     "to": "snippets/collection-mini-swatches.liquid"
@@ -53,20 +43,13 @@
     "to": "snippets/product-material-options.liquid"
   }
   ,
-  {
-    "from": "backend/public/wpd-siblings-inline.js",
-    "to": "assets/wpd-siblings-inline.js"
-  }
-  ,
+  
   {
     "from": "backend/public/wpd-materials.js",
     "to": "assets/wpd-materials.js"
   }
   ,
-  {
-    "from": "backend/public/wpd-siblings-sf.js",
-    "to": "assets/wpd-siblings-sf.js"
-  }
+  
   ,
   {
     "from": "theme-sections/product-material-options-section.liquid",
